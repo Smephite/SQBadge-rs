@@ -1,6 +1,6 @@
 use yew::prelude::*;
-use crate::{albedo_response, albedo};
-use wasm_bindgen::JsValue;
+use crate::js::{albedo_response, albedo, fetch};
+use js_sys::JsString;
 
 pub struct Home
 {
@@ -12,7 +12,9 @@ pub enum ClientEvent {
     AlbedoRequestLogin,
     AlbedoSuccessLogin(albedo_response::AlbedoPublicKey),
     AlbedoFailLogin(albedo_response::AlbedoError),
-    InternalError(serde_json::Error)
+    InternalError(serde_json::Error),
+    Fetch,
+    None
 }
 
 impl Component for Home {
@@ -30,7 +32,7 @@ impl Component for Home {
             ClientEvent::AlbedoRequestLogin => {
                 self.link.send_future(async {
                     let token = "stellar.badge.rs";
-                    let albedo_response = albedo::public_key(JsValue::from_str(token)).await;
+                    let albedo_response = albedo::public_key(JsString::from(token)).await;
 
                     match albedo_response {
                         Ok(resp) => {
@@ -53,6 +55,12 @@ impl Component for Home {
             },
             ClientEvent::AlbedoSuccessLogin(r) => log::info!("Albedo login successful: {:?}", r),
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
+            ClientEvent::Fetch => {
+                self.link.send_future(async {
+                    log::info!("{}", fetch::get_text(String::from("https://quest.stellar.org/.well-known/stellar.toml")).await.ok().unwrap());
+                    ClientEvent::None
+                });
+            }
             _ => {}
         }
 
@@ -65,7 +73,10 @@ impl Component for Home {
 
     fn view(&self) -> Html {
         html!{
-            <button onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>{"Albedo"}</button> 
+            <>
+                <button onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>{"Albedo"}</button> 
+                <button onclick={self.link.callback(|_| ClientEvent::Fetch)}>{"Fetch"}</button> 
+            </>
         }
     }
 

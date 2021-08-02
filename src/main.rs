@@ -1,7 +1,6 @@
 mod pages;
 mod view;
-mod albedo;
-mod albedo_response;
+mod js;
 
 fn main() {
     view::start();
