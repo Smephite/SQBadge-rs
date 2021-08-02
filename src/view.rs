@@ -37,18 +37,21 @@ impl Component for Model {
     fn view(&self) -> Html {
         html! {
             <>
-                { self.view_nav() }
+            
+            { self.view_nav() }
+
                 <main>
                     <Router<Route> render={Router::render(switch)}/>
                 </main>
                 <footer class="footer">
                     <div class="content has-text-centered">
                         <p>
-                            <strong><a href="https://github.com/Smephite/werewolf-rs">{"SQBadge-rs"}</a></strong>
+                            <strong><a href="https://github.com/Smephite/SQBadge-rss">{"SQBadge-rs"}</a></strong>
                             {" was made with ❤️ and 🍺"}
                         </p>
                     </div>
                 </footer>
+                
             </>
         }
     }
@@ -57,7 +60,7 @@ impl Component for Model {
 impl Model {
     fn view_nav(&self) -> Html {
         html! {
-            <nav class="navbar is-primary" role="navigation">
+            <nav class="navbar is-transparent is-fixed-bottom" role="navigation">
                 <div class="navbar-brand">
                     {go_to(Route::Home, html!{
                         <>
