@@ -3,31 +3,31 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct Account {
-    account_id: String,
-    sequence: String,
-    balances: Vec<Balance>,
+    pub account_id: String,
+    pub sequence: String,
+    pub balances: Vec<Balance>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct Balance {
-    balance: String,
-    asset_type: String,
-    asset_code: String,
-    asset_issuer: String,
-    last_modified_ledger: String,
+    pub balance: String,
+    pub asset_type: String,
+    pub asset_code: String,
+    pub asset_issuer: String,
+    pub last_modified_ledger: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
 pub struct OperationPayment {
-    id: String,
-    source_account: String,
-    created_at: String,
-    transaction_hash: String,
-    asset_type: String,
-    asset_code: String,
-    asset_issuer: String,
-    from: String,
-    to: String,
+    pub id: String,
+    pub source_account: String,
+    pub created_at: String,
+    pub transaction_hash: String,
+    pub asset_type: String,
+    pub asset_code: String,
+    pub asset_issuer: String,
+    pub from: String,
+    pub to: String,
 }
