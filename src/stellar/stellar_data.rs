@@ -18,7 +18,7 @@ pub struct Balance {
     pub last_modified_ledger: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct OperationPayment {
     pub id: String,
@@ -32,7 +32,7 @@ pub struct OperationPayment {
     pub to: String,
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone)]
 #[serde(default)]
 pub struct TOMLCurrency {
     pub code: String,

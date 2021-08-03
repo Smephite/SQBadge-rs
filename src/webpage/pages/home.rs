@@ -65,8 +65,7 @@ impl Component for Home {
                     let badges = badges
                         .into_iter()
                         .filter(|b| b.code.starts_with("SQ"))
-                        .map(|curr| (curr.issuer, curr.code))
-                        .collect::<Vec<(String, String)>>();
+                        .collect::<Vec<stellar_data::TOMLCurrency>>();
 
                     let in_possession = badge_check::fetch_badges(&pub_key, &badges).await;
                     log::info!("{}: {:?}", pub_key, in_possession);
