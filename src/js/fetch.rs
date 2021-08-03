@@ -19,8 +19,8 @@ pub async fn get(url: String) -> Result<Response, JsValue> {
     Ok(resp)
 }
 
-pub async fn get_text(url: String) -> Result<String, JsValue> {
-    let resp = get(url).await?;
+pub async fn get_text(url: &String) -> Result<String, JsValue> {
+    let resp = get(url.to_string()).await?;
     let text = JsFuture::from(resp.text()?)
         .await
         .unwrap()
@@ -29,8 +29,8 @@ pub async fn get_text(url: String) -> Result<String, JsValue> {
     Ok(text)
 }
 
-pub async fn get_json(url: String) -> Result<JsValue, JsValue> {
-    let resp = get(url).await?;
+pub async fn get_json(url: &String) -> Result<JsValue, JsValue> {
+    let resp = get(url.to_string()).await?;
     let value = JsFuture::from(resp.json()?).await.unwrap();
 
     Ok(value)

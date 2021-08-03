@@ -1,5 +1,6 @@
-use crate::js::{albedo, albedo_response, fetch};
+use crate::js::{albedo, albedo_response};
 use crate::stellar::*;
+use crate::util::badge_check;
 use js_sys::JsString;
 use yew::prelude::*;
 
@@ -52,20 +53,28 @@ impl Component for Home {
                     }
                 });
             }
-            ClientEvent::AlbedoSuccessLogin(r) => log::info!("Albedo login successful: {:?}", r),
-            ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
-            ClientEvent::Fetch => {
+            ClientEvent::AlbedoSuccessLogin(r) => {
                 self.link.send_future(async {
-                    log::info!(
-                        "{:?}",
-                        stellar::fetch_ledger_payments(String::from("36641147"))
-                            .await
-                            .ok()
-                            .unwrap()
-                    );
+                    let pub_key = r.pubkey;
+                    let badges = stellar::fetch_toml_currencies(&String::from(
+                        "https://quest.stellar.org/.well-known/stellar.toml",
+                    ))
+                    .await
+                    .unwrap();
+
+                    let badges = badges
+                        .into_iter()
+                        .filter(|b| b.code.starts_with("SQ"))
+                        .map(|curr| (curr.issuer, curr.code))
+                        .collect::<Vec<(String, String)>>();
+
+                    let in_possession = badge_check::fetch_badges(&pub_key, &badges).await;
+                    log::info!("{}: {:?}", pub_key, in_possession);
                     ClientEvent::None
                 });
             }
+            ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
+            ClientEvent::Fetch => {}
             _ => {}
         }
 

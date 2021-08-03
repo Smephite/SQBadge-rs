@@ -15,7 +15,7 @@ pub struct Balance {
     pub asset_type: String,
     pub asset_code: String,
     pub asset_issuer: String,
-    pub last_modified_ledger: String,
+    pub last_modified_ledger: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -30,4 +30,13 @@ pub struct OperationPayment {
     pub asset_issuer: String,
     pub from: String,
     pub to: String,
+}
+
+#[derive(Deserialize, Default, Debug)]
+#[serde(default)]
+pub struct TOMLCurrency {
+    pub code: String,
+    pub issuer: String,
+    pub image: String,
+    pub tag: String,
 }
