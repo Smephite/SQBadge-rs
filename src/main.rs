@@ -1,8 +1,7 @@
-mod pages;
-mod view;
 mod js;
+mod webpage;
 mod stellar;
 
 fn main() {
-    view::start();
+    webpage::view::start();
 }

@@ -1,4 +1,4 @@
-use crate::pages::{
+use crate::webpage::pages::{
     not_found,
     home::Home
 };
