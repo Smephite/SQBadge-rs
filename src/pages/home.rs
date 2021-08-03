@@ -1,5 +1,6 @@
 use yew::prelude::*;
 use crate::js::{albedo_response, albedo, fetch};
+use crate::stellar::*;
 use js_sys::JsString;
 
 pub struct Home
@@ -57,7 +58,7 @@ impl Component for Home {
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
             ClientEvent::Fetch => {
                 self.link.send_future(async {
-                    log::info!("{}", fetch::get_text(String::from("https://quest.stellar.org/.well-known/stellar.toml")).await.ok().unwrap());
+                    log::info!("{:?}", stellar::fetch_ledger_payments(String::from("36641147")).await.ok().unwrap());
                     ClientEvent::None
                 });
             }
