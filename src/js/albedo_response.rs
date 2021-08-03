@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct AlbedoError {
@@ -11,5 +11,5 @@ pub struct AlbedoPublicKey {
     pubkey: String,
     signed_message: String,
     signature: String,
-    intent: String
+    intent: String,
 }

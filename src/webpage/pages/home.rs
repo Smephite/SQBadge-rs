@@ -1,11 +1,10 @@
-use yew::prelude::*;
-use crate::js::{albedo_response, albedo, fetch};
+use crate::js::{albedo, albedo_response, fetch};
 use crate::stellar::*;
 use js_sys::JsString;
+use yew::prelude::*;
 
-pub struct Home
-{
-    link: ComponentLink<Home>
+pub struct Home {
+    link: ComponentLink<Home>,
 }
 
 #[derive(Debug)]
@@ -15,7 +14,7 @@ pub enum ClientEvent {
     AlbedoFailLogin(albedo_response::AlbedoError),
     InternalError(serde_json::Error),
     Fetch,
-    None
+    None,
 }
 
 impl Component for Home {
@@ -23,9 +22,7 @@ impl Component for Home {
     type Properties = ();
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self{
-            link: link
-        }
+        Self { link: link }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -37,28 +34,35 @@ impl Component for Home {
 
                     match albedo_response {
                         Ok(resp) => {
-                            let res : serde_json::Result<albedo_response::AlbedoPublicKey> = resp.into_serde();
+                            let res: serde_json::Result<albedo_response::AlbedoPublicKey> =
+                                resp.into_serde();
                             match res {
                                 Ok(r) => ClientEvent::AlbedoSuccessLogin(r),
-                                Err(r) => ClientEvent::InternalError(r)
+                                Err(r) => ClientEvent::InternalError(r),
                             }
-                        },
+                        }
                         Err(resp) => {
-                            let res : serde_json::Result<albedo_response::AlbedoError> = resp.into_serde();
+                            let res: serde_json::Result<albedo_response::AlbedoError> =
+                                resp.into_serde();
                             match res {
                                 Ok(r) => ClientEvent::AlbedoFailLogin(r),
-                                Err(r) => ClientEvent::InternalError(r)
+                                Err(r) => ClientEvent::InternalError(r),
                             }
-                            
                         }
                     }
                 });
-            },
+            }
             ClientEvent::AlbedoSuccessLogin(r) => log::info!("Albedo login successful: {:?}", r),
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
             ClientEvent::Fetch => {
                 self.link.send_future(async {
-                    log::info!("{:?}", stellar::fetch_ledger_payments(String::from("36641147")).await.ok().unwrap());
+                    log::info!(
+                        "{:?}",
+                        stellar::fetch_ledger_payments(String::from("36641147"))
+                            .await
+                            .ok()
+                            .unwrap()
+                    );
                     ClientEvent::None
                 });
             }
@@ -73,12 +77,11 @@ impl Component for Home {
     }
 
     fn view(&self) -> Html {
-        html!{
+        html! {
             <>
-                <button onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>{"Albedo"}</button> 
-                <button onclick={self.link.callback(|_| ClientEvent::Fetch)}>{"Fetch"}</button> 
+                <button onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>{"Albedo"}</button>
+                <button onclick={self.link.callback(|_| ClientEvent::Fetch)}>{"Fetch"}</button>
             </>
         }
     }
-
 }

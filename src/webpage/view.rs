@@ -1,7 +1,4 @@
-use crate::webpage::pages::{
-    not_found,
-    home::Home
-};
+use crate::webpage::pages::{home::Home, not_found};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -14,8 +11,7 @@ pub enum Route {
     NotFound,
 }
 
-struct Model {
-}
+struct Model {}
 
 impl Component for Model {
     type Message = ();
@@ -23,7 +19,7 @@ impl Component for Model {
 
     fn create(_props: Self::Properties, _: ComponentLink<Self>) -> Self {
         wasm_logger::init(wasm_logger::Config::default());
-        Self{}
+        Self {}
     }
 
     fn update(&mut self, _: Self::Message) -> ShouldRender {
@@ -37,7 +33,7 @@ impl Component for Model {
     fn view(&self) -> Html {
         html! {
             <>
-            
+
             { self.view_nav() }
 
                 <main>
@@ -51,7 +47,7 @@ impl Component for Model {
                         </p>
                     </div>
                 </footer>
-                
+
             </>
         }
     }
@@ -75,7 +71,7 @@ impl Model {
 
 fn switch(routes: &Route) -> Html {
     match routes {
-        Route::Home => html!{<Home />},
+        Route::Home => html! {<Home />},
         Route::NotFound => not_found::render(),
     }
 }
