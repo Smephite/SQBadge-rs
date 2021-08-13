@@ -69,10 +69,26 @@ impl Component for Home {
 
     fn view(&self) -> Html {
         html! {
-            <>
-                <button onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>{"Albedo"}</button>
-                <button onclick={self.link.callback(|_| ClientEvent::Fetch)}>{"Fetch"}</button>
-            </>
+            <div class="container is-max-desktop">
+                   <div class="sqb-main-page">
+                        <h1 class="title is-centered">{"SQ Badge Checker"}</h1>
+                        <h2 class="subtitle is-centered">{"Only here!"}</h2>
+                        <div class="columns is-4 is-variable">
+                            <div class="column is-centered">
+                                <button class="button is-primary" style="width: 100%" 
+                                        onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>
+                                        {"View your Badges!"}
+                                </button>
+                            </div>
+                            <div class="column">
+                                <button class="button is-primary" style="width: 100%" 
+                                        onclick={self.link.callback(|_| ClientEvent::Fetch)}>
+                                        {"Verify Proof."}
+                                </button>
+                            </div>
+                        </div>
+                   </div>
+            </div>
         }
     }
 }
