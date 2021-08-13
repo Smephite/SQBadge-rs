@@ -1,4 +1,4 @@
-use crate::webpage::pages::{home::Home, not_found};
+use crate::webpage::pages::{account::AccountView, home::Home, not_found};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -9,6 +9,8 @@ pub enum Route {
     #[at("/404")]
     #[not_found]
     NotFound,
+    #[at("/account/:id")]
+    Account { id: String },
 }
 
 struct Model {}
@@ -73,6 +75,7 @@ fn switch(routes: &Route) -> Html {
     match routes {
         Route::Home => html! {<Home />},
         Route::NotFound => not_found::render(),
+        Route::Account { id } => html! {<AccountView account={id.clone()}/>},
     }
 }
 

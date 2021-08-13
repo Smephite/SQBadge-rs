@@ -1,6 +1,6 @@
 use crate::stellar::*;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Badge {
     code: String,
     issuer: String,

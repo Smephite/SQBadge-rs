@@ -1,6 +1,5 @@
 use crate::js::{albedo, albedo_response};
-use crate::stellar::*;
-use crate::util::badge_check;
+use crate::webpage::view::Route;
 use js_sys::JsString;
 use yew::prelude::*;
 
@@ -15,7 +14,6 @@ pub enum ClientEvent {
     AlbedoFailLogin(albedo_response::AlbedoError),
     InternalError(serde_json::Error),
     Fetch,
-    None,
 }
 
 impl Component for Home {
@@ -31,7 +29,8 @@ impl Component for Home {
             ClientEvent::AlbedoRequestLogin => {
                 self.link.send_future(async {
                     let token = "stellar.badge.rs";
-                    let albedo_response = albedo::public_key(JsString::from(token)).await;
+                    let albedo_response =
+                        unsafe { albedo::public_key(JsString::from(token)).await };
 
                     match albedo_response {
                         Ok(resp) => {
@@ -54,24 +53,7 @@ impl Component for Home {
                 });
             }
             ClientEvent::AlbedoSuccessLogin(r) => {
-                self.link.send_future(async {
-                    let pub_key = r.pubkey;
-                    let badges = stellar::fetch_toml_currencies(&String::from(
-                        "https://quest.stellar.org/.well-known/stellar.toml",
-                    ))
-                    .await
-                    .unwrap();
-
-                    let badges = badges
-                        .into_iter()
-                        .filter(|b| b.code.starts_with("SQ"))
-                        .map(|curr| (curr.issuer, curr.code))
-                        .collect::<Vec<(String, String)>>();
-
-                    let in_possession = badge_check::fetch_badges(&pub_key, &badges).await;
-                    log::info!("{}: {:?}", pub_key, in_possession);
-                    ClientEvent::None
-                });
+                yew_router::push_route(Route::Account { id: r.pubkey })
             }
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
             ClientEvent::Fetch => {}

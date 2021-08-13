@@ -32,7 +32,7 @@ pub struct OperationPayment {
     pub to: String,
 }
 
-#[derive(Deserialize, Default, Debug)]
+#[derive(Deserialize, Default, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct TOMLCurrency {
     pub code: String,
