@@ -5,6 +5,7 @@ use toml::Value as tomlValue;
 use wasm_bindgen::JsValue;
 static HORIZONT_ENDPOINT: &str = "https://horizon.stellar.org/";
 
+#[warn(dead_code)]
 pub async fn fetch_account(id: &String) -> Result<stellar_data::Account, JsValue> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("accounts/");
@@ -14,6 +15,36 @@ pub async fn fetch_account(id: &String) -> Result<stellar_data::Account, JsValue
     Ok(acc)
 }
 
+pub async fn fetch_account_payments(id: &String) -> Option<Vec<stellar_data::OperationPayment>> {
+    let mut url = String::from(HORIZONT_ENDPOINT);
+    url.push_str("accounts/");
+    url.push_str(&id);
+    url.push_str("/payments?limit=200");
+
+    let mut next_url = url.clone();
+    let mut all_payments = vec![];
+    loop {
+        let json = fetch::get_json(&next_url).await;
+        if json.is_err() {
+            break;
+        }
+
+        let data: Value = json.ok().unwrap().into_serde().unwrap();
+        next_url = urldecode::decode(String::from(
+            data.pointer("/_links/next/href").unwrap().as_str().unwrap(),
+        ));
+        let records = data.pointer("/_embedded/records").unwrap().clone();
+        let mut payment_data: Vec<stellar_data::OperationPayment> =
+            serde_json::from_value(records).unwrap();
+        if payment_data.len() == 0 {
+            break;
+        }
+        all_payments.append(&mut payment_data);
+    }
+    Some(all_payments)
+}
+
+#[warn(dead_code)]
 pub async fn fetch_ledger_payments(
     id: &String,
 ) -> Result<Vec<stellar_data::OperationPayment>, JsValue> {

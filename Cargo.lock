@@ -311,6 +311,7 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+ "urldecode",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",
@@ -370,6 +371,12 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
+
+[[package]]
+name = "urldecode"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "070c2eb79ba268848a73885f94a83b86d9e6441c5d5b10727d5f8989db2c8edc"
 
 [[package]]
 name = "wasm-bindgen"

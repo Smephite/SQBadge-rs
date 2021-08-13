@@ -2,35 +2,46 @@ use crate::stellar::*;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Badge {
-    code: String,
-    issuer: String,
-    ledger_mod: u64,
+    token: stellar_data::TOMLCurrency,
+    tx_hash: String,
+    owned: bool,
 }
 
-pub async fn fetch_badges(id: &String, available_badges: &Vec<(String, String)>) -> Vec<Badge> {
-    let account = match stellar::fetch_account(id).await {
-        Ok(data) => data,
-        Err(_) => {
-            return vec![];
-        }
-    };
+pub async fn fetch_badges(
+    id: &String,
+    available_badges: &Vec<stellar_data::TOMLCurrency>,
+) -> Option<Vec<Badge>> {
+    let payments = stellar::fetch_account_payments(id).await?;
 
-    log::info!("{:?}\n{:?}", available_badges, account.balances);
-
-    let matching_badges = account
-        .balances
+    let badges = available_badges
         .into_iter()
-        .filter(|balance| {
-            balance.asset_type == "credit_alphanum12"
-                && available_badges
-                    .contains(&(balance.asset_issuer.clone(), balance.asset_code.clone()))
-        })
-        .map(|bal| Badge {
-            code: bal.asset_code,
-            issuer: bal.asset_issuer,
-            ledger_mod: bal.last_modified_ledger,
+        .map(|badge| {
+            let payment = payments
+                .clone()
+                .into_iter()
+                .filter(|p| {
+                    p.asset_type == "credit_alphanum12"
+                        && p.asset_issuer == p.from
+                        && p.asset_issuer == badge.issuer
+                        && p.asset_code == badge.code
+                })
+                .next();
+            let mut badge = Badge {
+                token: badge.clone(),
+                tx_hash: String::default(),
+                owned: false,
+            };
+            match payment {
+                Some(b) => {
+                    badge.tx_hash = b.transaction_hash;
+                    badge.owned = true;
+                }
+                _ => {}
+            };
+
+            badge
         })
         .collect::<Vec<Badge>>();
 
-    matching_badges
+    Some(badges)
 }
