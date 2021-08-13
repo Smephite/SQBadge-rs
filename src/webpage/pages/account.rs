@@ -102,12 +102,10 @@ impl Component for AccountView {
                 let available_badges = available_badges.unwrap();
 
                 self.link.send_future(async move {
-                    let badges = available_badges.clone().into_iter().map(|curr| (curr.issuer, curr.code))
-                    .collect::<Vec<(String, String)>>();
 
-                    let in_possession = badge_check::fetch_badges(&pub_key, &badges).await;
+                    let in_possession = badge_check::fetch_badges(&pub_key, &available_badges).await;
 
-                    LoadStatus::FetchOwnedBadgesDone{owned_badges: in_possession}
+                    LoadStatus::FetchOwnedBadgesDone{owned_badges: in_possession.unwrap_or(vec![])}
                 });
                 false
             },
