@@ -1,12 +1,15 @@
 use crate::js::fetch;
 use crate::stellar::stellar_data;
+use crate::util::error::{Error, StellarErr};
 use serde_json::Value;
 use toml::Value as tomlValue;
 use wasm_bindgen::JsValue;
 static HORIZONT_ENDPOINT: &str = "https://horizon.stellar.org/";
 
+type Result<T> = std::result::Result<T, Error>;
+
 #[warn(dead_code)]
-pub async fn fetch_account(id: &String) -> Result<stellar_data::Account, JsValue> {
+pub async fn fetch_account(id: &String) -> std::result::Result<stellar_data::Account, JsValue> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("accounts/");
     url.push_str(&id);
@@ -15,7 +18,7 @@ pub async fn fetch_account(id: &String) -> Result<stellar_data::Account, JsValue
     Ok(acc)
 }
 
-pub async fn fetch_account_payments(id: &String) -> Option<Vec<stellar_data::OperationPayment>> {
+pub async fn fetch_account_payments(id: &String) -> Result<Vec<stellar_data::OperationPayment>> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("accounts/");
     url.push_str(&id);
@@ -30,8 +33,26 @@ pub async fn fetch_account_payments(id: &String) -> Option<Vec<stellar_data::Ope
         }
 
         let data: Value = json.ok().unwrap().into_serde().unwrap();
+        let next = data.pointer("/_links/next/href");
+
+        if next.is_none() {
+            let status_code = data.pointer("/status");
+            if status_code.is_none() {
+                return Err(Error::StellarErr(StellarErr::Unknown));
+            }
+            let status_code = status_code.unwrap();
+            if status_code == 400 {
+                // invalid public key?
+                return Err(Error::StellarErr(StellarErr::InvalidPublicKey));
+            } else if status_code == 404 {
+                // account not funded
+                return Err(Error::StellarErr(StellarErr::AccountNotFound));
+            }
+            return Err(Error::StellarErr(StellarErr::Unknown));
+        }
+
         next_url = urldecode::decode(String::from(
-            data.pointer("/_links/next/href").unwrap().as_str().unwrap(),
+            next.unwrap().as_str().unwrap(),
         ));
         let records = data.pointer("/_embedded/records").unwrap().clone();
         let mut payment_data: Vec<stellar_data::OperationPayment> =
@@ -41,13 +62,13 @@ pub async fn fetch_account_payments(id: &String) -> Option<Vec<stellar_data::Ope
         }
         all_payments.append(&mut payment_data);
     }
-    Some(all_payments)
+    Ok(all_payments)
 }
 
 #[warn(dead_code)]
 pub async fn fetch_ledger_payments(
     id: &String,
-) -> Result<Vec<stellar_data::OperationPayment>, JsValue> {
+) -> std::result::Result<Vec<stellar_data::OperationPayment>, JsValue> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("ledgers/");
     url.push_str(&id);
@@ -75,7 +96,7 @@ pub async fn fetch_toml_currencies(toml_url: &String) -> Option<Vec<stellar_data
     };
 
     let currencies = val.get("CURRENCIES")?.clone();
-    let currencies: Result<Vec<stellar_data::TOMLCurrency>, toml::de::Error> =
+    let currencies: std::result::Result<Vec<stellar_data::TOMLCurrency>, toml::de::Error> =
         currencies.try_into();
 
     match currencies {

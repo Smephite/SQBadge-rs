@@ -105,7 +105,11 @@ impl Component for AccountView {
 
                     let in_possession = badge_check::fetch_badges(&pub_key, &available_badges).await;
 
-                    LoadStatus::FetchOwnedBadgesDone{owned_badges: in_possession.unwrap_or(vec![])}
+                    if in_possession.is_err() { // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
+                        return LoadStatus::Err(format!("Error: {:?}", in_possession.err()));
+                    }
+
+                    LoadStatus::FetchOwnedBadgesDone{owned_badges: in_possession.unwrap()}
                 });
                 false
             },
@@ -142,7 +146,10 @@ impl Component for AccountView {
 impl AccountView {
     fn view_account(&self) -> Html {
         html! {
-            <p>{"Account "}{&self.props.account}</p>
+            <p>{"Account "}{&self.props.account}{" Owns "}
+            {self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
+            {"/"}
+            {self.storage.available_badges.clone().unwrap_or(vec![]).len()}</p>
         }
     }
     fn view_loading(&self) -> Html {

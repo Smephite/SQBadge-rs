@@ -1,16 +1,19 @@
 use crate::stellar::*;
-
+use crate::util::error::Error;
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Badge {
-    token: stellar_data::TOMLCurrency,
-    tx_hash: String,
-    owned: bool,
+    pub token: stellar_data::TOMLCurrency,
+    pub tx_hash: String,
+    pub owned: bool,
 }
+
+
+type Result<T> = std::result::Result<T, Error>;
 
 pub async fn fetch_badges(
     id: &String,
     available_badges: &Vec<stellar_data::TOMLCurrency>,
-) -> Option<Vec<Badge>> {
+) -> Result<Vec<Badge>> {
     let payments = stellar::fetch_account_payments(id).await?;
 
     let badges = available_badges
@@ -43,5 +46,5 @@ pub async fn fetch_badges(
         })
         .collect::<Vec<Badge>>();
 
-    Some(badges)
+    Ok(badges)
 }
