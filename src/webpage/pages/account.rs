@@ -5,6 +5,8 @@ use yew::{html, Component, ComponentLink};
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use itertools::Itertools;
+
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct Props {
@@ -150,13 +152,39 @@ impl Component for AccountView {
     }
 }
 
+fn render_series(series: &String, badges: &Vec<Badge>) -> Html {
+    html! {
+        <section class="section">
+        <h1 class="title">{series}</h1>
+        {badges.clone().into_iter().collect::<Html>()}
+        </section>
+    }
+}
+
 impl AccountView {
     fn view_account(&self) -> Html {
         html! {
-            <p>{"Account "}{&self.props.account}{" Owns "}
-            {self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
-            {"/"}
-            {self.storage.available_badges.clone().unwrap_or(vec![]).len()}</p>
+            <>
+                <p>
+                    {"Account "}{&self.props.account}{" Owns "}
+                    {self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
+                    {"/"}
+                    {self.storage.available_badges.clone().unwrap_or(vec![]).len()}
+                </p>
+
+                {
+                    self.storage.owned_badges.clone()
+                        .unwrap_or(vec![]).into_iter()
+                        .filter(|badge| badge.token.code.starts_with("SQ"))
+                        .group_by(|badge| {
+                            let mut series = badge.token.code.clone();
+                            series.truncate(4);
+                            series
+                        }).into_iter()
+                        .map(|(series, badges)|render_series(&series, &badges.collect()))
+                        .collect::<Html>()
+                }
+            </>
         }
     }
     fn view_loading(&self) -> Html {
