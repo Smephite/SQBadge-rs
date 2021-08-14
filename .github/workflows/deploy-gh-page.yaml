@@ -21,6 +21,7 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           trunk build --release
+          cp dist/index.html dist/404.html
 
       - name: Deploy 
         uses: JamesIves/github-pages-deploy-action@4.1.4
