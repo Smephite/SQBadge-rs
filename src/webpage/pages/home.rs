@@ -75,13 +75,13 @@ impl Component for Home {
                         <h2 class="subtitle is-centered">{"Only here!"}</h2>
                         <div class="columns is-4 is-variable">
                             <div class="column is-centered">
-                                <button class="button is-primary" style="width: 100%" 
+                                <button class="button is-primary" style="width: 100%"
                                         onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>
                                         {"View your Badges!"}
                                 </button>
                             </div>
                             <div class="column">
-                                <button class="button is-primary" style="width: 100%" 
+                                <button class="button is-primary" style="width: 100%"
                                         onclick={self.link.callback(|_| ClientEvent::Fetch)}>
                                         {"Verify Proof."}
                                 </button>

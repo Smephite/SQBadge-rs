@@ -2,8 +2,8 @@ use log::{debug, info, warn};
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
 
-use crate::stellar::*;
 use crate::stellar::stellar_data::TOMLCurrency;
+use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
@@ -11,29 +11,28 @@ pub struct Props {
     pub account: String,
 }
 
-
 #[derive(Clone, Debug, PartialEq, Properties, Default)]
 pub struct AccountStorage {
     pub available_badges: Option<Vec<TOMLCurrency>>,
-    pub owned_badges: Option<Vec<Badge>>
+    pub owned_badges: Option<Vec<Badge>>,
 }
 
 pub struct AccountView {
     link: ComponentLink<AccountView>,
     props: Props,
     status: LoadStatus,
-    storage: AccountStorage
+    storage: AccountStorage,
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum LoadStatus {
     Begin,
     FetchAvailableBadges,
-    FetchAvailableBadgesDone{available_badges: Vec<TOMLCurrency>},
+    FetchAvailableBadgesDone { available_badges: Vec<TOMLCurrency> },
     FetchOwnedBadges,
-    FetchOwnedBadgesDone{owned_badges: Vec<Badge>},
+    FetchOwnedBadgesDone { owned_badges: Vec<Badge> },
     Done,
-    Err(String)
+    Err(String),
 }
 
 impl Component for AccountView {
@@ -45,7 +44,7 @@ impl Component for AccountView {
             link: link,
             props: props,
             status: LoadStatus::Begin,
-            storage: AccountStorage::default()
+            storage: AccountStorage::default(),
         }
     }
 
@@ -55,7 +54,8 @@ impl Component for AccountView {
         }
 
         if !check_valid_public_key(&self.props.account) {
-            self.link.send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
+            self.link
+                .send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
             return;
         }
         self.link.send_message(LoadStatus::Begin);
@@ -68,7 +68,7 @@ impl Component for AccountView {
             LoadStatus::Begin => {
                 self.link.send_message(LoadStatus::FetchAvailableBadges);
                 false
-            },
+            }
             LoadStatus::FetchAvailableBadges => {
                 self.link.send_future(async {
                     let badges = stellar::fetch_toml_currencies(&String::from(
@@ -78,54 +78,62 @@ impl Component for AccountView {
                     .unwrap();
                     let badges = badges
                         .into_iter()
-                        .filter(|b| b.code.starts_with("SQ")).collect();
-                    LoadStatus::FetchAvailableBadgesDone{available_badges: badges}
+                        .filter(|b| b.code.starts_with("SQ"))
+                        .collect();
+                    LoadStatus::FetchAvailableBadgesDone {
+                        available_badges: badges,
+                    }
                 });
                 false
-            },
-            LoadStatus::FetchAvailableBadgesDone{available_badges} => {
+            }
+            LoadStatus::FetchAvailableBadgesDone { available_badges } => {
                 self.storage.available_badges = Some(available_badges.clone());
                 info!("Loaded available badges: {:?}", available_badges);
                 self.link.send_message(LoadStatus::FetchOwnedBadges);
                 false
-            },
+            }
             LoadStatus::FetchOwnedBadges => {
                 let pub_key = self.props.account.clone();
                 let available_badges = self.storage.available_badges.clone();
 
                 if available_badges.is_none() {
                     warn!("Invalid load state: available badges are None!");
-                    self.link.send_message(LoadStatus::Err(String::from("Invalid data received for: available_badges in None!")));
+                    self.link.send_message(LoadStatus::Err(String::from(
+                        "Invalid data received for: available_badges in None!",
+                    )));
                     return false;
                 }
 
                 let available_badges = available_badges.unwrap();
 
                 self.link.send_future(async move {
+                    let in_possession =
+                        badge_check::fetch_badges(&pub_key, &available_badges).await;
 
-                    let in_possession = badge_check::fetch_badges(&pub_key, &available_badges).await;
-
-                    if in_possession.is_err() { // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
+                    if in_possession.is_err() {
+                        // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
                         return LoadStatus::Err(format!("Error: {:?}", in_possession.err()));
                     }
 
-                    LoadStatus::FetchOwnedBadgesDone{owned_badges: in_possession.unwrap()}
+                    LoadStatus::FetchOwnedBadgesDone {
+                        owned_badges: in_possession.unwrap(),
+                    }
                 });
                 false
-            },
-            LoadStatus::FetchOwnedBadgesDone{owned_badges} => {
+            }
+            LoadStatus::FetchOwnedBadgesDone { owned_badges } => {
                 self.storage.owned_badges = Some(owned_badges.clone());
                 info!("Loaded owned badges: {:?}", owned_badges);
                 self.link.send_message(LoadStatus::Done);
                 false
-            },
+            }
             LoadStatus::Done => {
                 info!("Finished Loading!");
                 info!("{:?}", self.storage);
                 true
-            },
+            }
             LoadStatus::Err(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -134,11 +142,10 @@ impl Component for AccountView {
     }
 
     fn view(&self) -> yew::Html {
-
         match self.status.clone() {
             LoadStatus::Err(msg) => self.view_err(&msg),
             LoadStatus::Done => self.view_account(),
-            _ => self.view_loading()
+            _ => self.view_loading(),
         }
     }
 }
@@ -153,7 +160,7 @@ impl AccountView {
         }
     }
     fn view_loading(&self) -> Html {
-        html!{
+        html! {
             <p>{"Loading "}{&self.props.account}{"..."}</p>
         }
     }
@@ -164,10 +171,6 @@ impl AccountView {
     }
 }
 
-
-
 fn check_valid_public_key(_: &String) -> bool {
     true
 }
-
-

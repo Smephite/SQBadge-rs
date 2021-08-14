@@ -2,12 +2,12 @@
 pub enum Error {
     StellarErr(StellarErr),
     Other(String),
-    Unknown
+    Unknown,
 }
 
 #[derive(Debug)]
-pub enum StellarErr{
+pub enum StellarErr {
     InvalidPublicKey,
     AccountNotFound,
-    Unknown
+    Unknown,
 }

@@ -51,9 +51,7 @@ pub async fn fetch_account_payments(id: &String) -> Result<Vec<stellar_data::Ope
             return Err(Error::StellarErr(StellarErr::Unknown));
         }
 
-        next_url = urldecode::decode(String::from(
-            next.unwrap().as_str().unwrap(),
-        ));
+        next_url = urldecode::decode(String::from(next.unwrap().as_str().unwrap()));
         let records = data.pointer("/_embedded/records").unwrap().clone();
         let mut payment_data: Vec<stellar_data::OperationPayment> =
             serde_json::from_value(records).unwrap();

@@ -7,7 +7,6 @@ pub struct Badge {
     pub owned: bool,
 }
 
-
 type Result<T> = std::result::Result<T, Error>;
 
 pub async fn fetch_badges(
