@@ -134,7 +134,6 @@ impl Component for AccountView {
                 true
             }
             LoadStatus::Err(_) => true,
-            _ => false,
         }
     }
 

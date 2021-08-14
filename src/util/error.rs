@@ -1,4 +1,5 @@
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum Error {
     StellarErr(StellarErr),
     Other(String),

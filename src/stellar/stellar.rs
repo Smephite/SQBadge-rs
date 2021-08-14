@@ -8,7 +8,7 @@ static HORIZONT_ENDPOINT: &str = "https://horizon.stellar.org/";
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub async fn fetch_account(id: &String) -> std::result::Result<stellar_data::Account, JsValue> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("accounts/");
@@ -63,7 +63,7 @@ pub async fn fetch_account_payments(id: &String) -> Result<Vec<stellar_data::Ope
     Ok(all_payments)
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub async fn fetch_ledger_payments(
     id: &String,
 ) -> std::result::Result<Vec<stellar_data::OperationPayment>, JsValue> {
