@@ -79,7 +79,7 @@ impl Component for AccountView {
                     .unwrap();
                     let badges = badges
                         .into_iter()
-                        .filter(|b| b.code.starts_with("SQ"))
+                        .filter(|b| b.code.starts_with("SQ") || b.code.starts_with("SSQ"))
                         .collect();
                     LoadStatus::FetchAvailableBadgesDone {
                         available_badges: badges,
@@ -145,7 +145,7 @@ impl Component for AccountView {
         match self.status.clone() {
             LoadStatus::Err(msg) => self.view_err(&msg),
             LoadStatus::Done => self.view_account(),
-            _ => self.view_loading(),
+            other => self.view_loading(other),
         }
     }
 }
@@ -173,10 +173,13 @@ impl AccountView {
                 {
                     self.storage.owned_badges.clone()
                         .unwrap_or(vec![]).into_iter()
-                        .filter(|badge| badge.token.code.starts_with("SQ"))
                         .group_by(|badge| {
                             let mut series = badge.token.code.clone();
-                            series.truncate(4);
+                            if series.starts_with("SSQ") {
+                                series.truncate(3);
+                            } else {
+                                series.truncate(4);
+                            }
                             series
                         }).into_iter()
                         .map(|(series, badges)|render_series(&series, &badges.collect()))
@@ -185,9 +188,20 @@ impl AccountView {
             </>
         }
     }
-    fn view_loading(&self) -> Html {
+    fn view_loading(&self, status: LoadStatus) -> Html {
+        let description = match status {
+            LoadStatus::Begin | LoadStatus::FetchAvailableBadges | LoadStatus::FetchAvailableBadgesDone{available_badges: _} => String::from("Fetching all available badges..."),
+            LoadStatus::FetchOwnedBadges | LoadStatus::FetchOwnedBadgesDone{owned_badges: _} => String::from("Verifying users badges..."),
+            _ => String::default()
+        };
+        info!{"{:?}", status};
         html! {
-            <p>{"Loading "}{&self.props.account}{"..."}</p>
+            <div class="container is-max-desktop column">
+                <div class="sqb-centered">
+                    <h2 class="subtitle is-centered">{"Loading Badges for "} <i>{&self.props.account}</i></h2>
+                    { if description != String::default() { &description } else {""}}
+                </div>
+            </div>
         }
     }
     fn view_err(&self, message: &String) -> Html {

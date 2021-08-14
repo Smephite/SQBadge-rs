@@ -34,11 +34,26 @@ impl Component for BadgeCard {
         if !self.badge.owned {
             cls.push("disabled");
         }
-        html! {
-            <div class={classes!(cls)}>
+
+        let inner = html!{
+            <>
                 <img src={self.badge.token.image.clone()}/>
                 <p>{self.badge.token.code.clone()}</p>
-            </div>
+            </>
+        };
+        if self.badge.owned {
+            
+            html! {
+                <div class={classes!(cls)}>
+                    <a href={format!("https://horizon.stellar.org/transactions/{}", self.badge.tx_hash)}>{ inner }</a>
+                </div>
+            }
+        } else {
+            html! {
+                <div class={classes!(cls)}>
+                    { inner }
+                </div>
+            }
         }
     }
 }

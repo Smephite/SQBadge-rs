@@ -3,7 +3,18 @@ body {
     min-height: 100vh;
     flex-direction: column;
   }
-  
+
+.badge.disabled {
+  -webkit-filter: grayscale(100%);
+  filter: grayscale(100%);
+}
+.badge img {
+  width: 4em;
+}
+
+.navbar {
+  background: rgba(0, 0, 0, 0);
+}
   #app {
     flex: 1;
     display: flex;
@@ -26,7 +37,7 @@ body {
   }
 
 
-.sqb-main-page {
+.sqb-centered {
   margin-top: 20%;
   margin-left: 10%;
   margin-right: 10%;

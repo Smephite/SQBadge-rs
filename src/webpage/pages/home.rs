@@ -69,8 +69,8 @@ impl Component for Home {
 
     fn view(&self) -> Html {
         html! {
-            <div class="container is-max-desktop">
-                   <div class="sqb-main-page">
+            <div class="container is-max-desktop column">
+                   <div class="sqb-centered">
                         <h1 class="title is-centered">{"SQ Badge Checker"}</h1>
                         <h2 class="subtitle is-centered">{"Only here!"}</h2>
                         <div class="columns is-4 is-variable">
