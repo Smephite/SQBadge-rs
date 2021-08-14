@@ -7,7 +7,6 @@ use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
 use itertools::Itertools;
 
-
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct Props {
     pub account: String,
