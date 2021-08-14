@@ -1,4 +1,4 @@
-body {
+.column-design {
     display: flex;
     min-height: 100vh;
     flex-direction: column;
@@ -10,16 +10,13 @@ body {
 }
 .badge img {
   width: 4em;
+  height: 4em;
 }
 
 .navbar {
   background: rgba(0, 0, 0, 0);
 }
-  #app {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
+
   
   
   footer {
@@ -27,15 +24,23 @@ body {
     padding: 1.5rem 1.5rem 1rem !important;
   }
 
-  main {
+  .badges {
       flex: 1;
       display: flex;
+      justify-content: center;
   }
+.badge-name {
+  text-align: center;
+}
 
   nav a.no-hover:hover {
     background-color: #00d1b2 !important;
   }
 
+.section {
+  padding-right: 0.5em;
+  padding-left: 0.5em;
+}
 
 .sqb-centered {
   margin-top: 20%;

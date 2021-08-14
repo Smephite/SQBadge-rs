@@ -35,17 +35,29 @@ impl Component for BadgeCard {
             cls.push("disabled");
         }
 
-        let inner = html!{
+        let mut name = self.badge.token.code.clone();
+        let mut monochrome = "";
+        if &self.badge.token.tag == "mono" {
+            name.push_str(" mono");
+            monochrome = "(monochrome) "
+        }
+
+        let inner = html! {
             <>
-                <img src={self.badge.token.image.clone()}/>
-                <p>{self.badge.token.code.clone()}</p>
+                <img style="margin-left: auto; margin-right: auto; display: block;" src={self.badge.token.image.clone()}
+                 title={
+                     match self.badge.date_accuired.clone() {
+                         Some(date) => format!("{} {}owned since {}", &self.badge.token.code, monochrome, date),
+                         None => format!("{} not accuired yet", &name)
+                     }
+                 } alt="" />
+                <p class="badge-name">{&name}</p>
             </>
         };
         if self.badge.owned {
-            
             html! {
                 <div class={classes!(cls)}>
-                    <a href={format!("https://horizon.stellar.org/transactions/{}", self.badge.tx_hash)}>{ inner }</a>
+                    <a href={format!("https://horizon.stellar.org/transactions/{}", self.badge.tx_hash.clone().unwrap())}>{ inner }</a>
                 </div>
             }
         } else {

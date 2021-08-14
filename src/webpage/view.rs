@@ -1,4 +1,4 @@
-use crate::webpage::pages::{account::AccountView, home::Home, not_found};
+use crate::webpage::pages::{account::AccountView, home::Home, not_found, proof::ProofVerify};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
@@ -11,17 +11,21 @@ pub enum Route {
     NotFound,
     #[at("/account/:id")]
     Account { id: String },
+    #[at("/proof/:id")]
+    Proof { id: String },
 }
 
-struct Model {}
+struct Model {
+    link: ComponentLink<Model>,
+}
 
 impl Component for Model {
     type Message = ();
     type Properties = ();
 
-    fn create(_props: Self::Properties, _: ComponentLink<Self>) -> Self {
+    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
         wasm_logger::init(wasm_logger::Config::default());
-        Self {}
+        Self { link: link }
     }
 
     fn update(&mut self, _: Self::Message) -> ShouldRender {
@@ -37,19 +41,19 @@ impl Component for Model {
             <>
 
             { self.view_nav() }
-
+            <div class="column-design">
                 <main>
                     <Router<Route> render={Router::render(switch)}/>
                 </main>
                 <footer class="footer">
                     <div class="content has-text-centered">
                         <p>
-                            <strong><a href="https://github.com/Smephite/SQBadge-rss">{"SQBadge-rs"}</a></strong>
+                            <strong><a href="https://github.com/Smephite/SQBadge-rs">{"SQBadge-rs"}</a></strong>
                             {" was made with ❤️ and 🍺"}
                         </p>
                     </div>
                 </footer>
-
+            </div>
             </>
         }
     }
@@ -76,6 +80,7 @@ fn switch(routes: &Route) -> Html {
         Route::Home => html! {<Home />},
         Route::NotFound => not_found::render(),
         Route::Account { id } => html! {<AccountView account={id.clone()}/>},
+        Route::Proof { id } => html! {<ProofVerify proof={id.clone()}/>},
     }
 }
 

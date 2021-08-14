@@ -9,20 +9,21 @@ use itertools::Itertools;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
 pub struct Props {
-    pub account: String,
+    pub proof: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Properties, Default)]
-pub struct AccountStorage {
+pub struct ProofStorage {
     pub available_badges: Option<Vec<TOMLCurrency>>,
     pub owned_badges: Option<Vec<Badge>>,
+    pub account: Option<String>,
 }
 
-pub struct AccountView {
-    link: ComponentLink<AccountView>,
+pub struct ProofVerify {
+    link: ComponentLink<ProofVerify>,
     props: Props,
     status: LoadStatus,
-    storage: AccountStorage,
+    storage: ProofStorage,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -34,9 +35,10 @@ pub enum LoadStatus {
     FetchOwnedBadgesDone { owned_badges: Vec<Badge> },
     Done,
     Err(String),
+    None,
 }
 
-impl Component for AccountView {
+impl Component for ProofVerify {
     type Message = LoadStatus;
     type Properties = Props;
 
@@ -44,8 +46,8 @@ impl Component for AccountView {
         Self {
             link: link,
             props: props,
-            status: LoadStatus::Begin,
-            storage: AccountStorage::default(),
+            status: LoadStatus::None,
+            storage: ProofStorage::default(),
         }
     }
 
@@ -54,7 +56,11 @@ impl Component for AccountView {
             return;
         }
 
-        if !check_valid_public_key(&self.props.account) {
+        if self.storage.account.is_none() {
+            return;
+        }
+
+        if !check_valid_public_key(&self.storage.account.clone().unwrap()) {
             self.link
                 .send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
             return;
@@ -94,7 +100,7 @@ impl Component for AccountView {
                 false
             }
             LoadStatus::FetchOwnedBadges => {
-                let pub_key = self.props.account.clone();
+                let pub_key = self.storage.account.clone().unwrap().clone();
                 let available_badges = self.storage.available_badges.clone();
 
                 if available_badges.is_none() {
@@ -133,7 +139,7 @@ impl Component for AccountView {
                 info!("{:?}", self.storage);
                 true
             }
-            LoadStatus::Err(_) => true,
+            _ => true,
         }
     }
 
@@ -159,14 +165,14 @@ fn render_series(series: &String, badges: &Vec<Badge>) -> Html {
     }
 }
 
-impl AccountView {
+impl ProofVerify {
     fn view_account(&self) -> Html {
         html! {
             <>
                 <h2 class="title" style="text-align: center">
                     {"Account "}
-                    <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.props.account)}>
-                        {&self.props.account}
+                    <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.storage.account.clone().unwrap())}>
+                        {&self.storage.account.clone().unwrap()}
                     </a>
                 </h2>
                 <p style="text-align: center">
@@ -205,13 +211,13 @@ impl AccountView {
             LoadStatus::FetchOwnedBadges | LoadStatus::FetchOwnedBadgesDone { owned_badges: _ } => {
                 String::from("Verifying users badges...")
             }
-            _ => String::default(),
+            _ => String::from("unknown"),
         };
         info! {"{:?}", status};
         html! {
             <div class="container is-max-desktop">
                 <div class="sqb-centered">
-                    <h2 class="subtitle is-centered">{"Loading Badges for "} <i>{&self.props.account}</i></h2>
+                    <h2 class="subtitle is-centered">{"Verifying Proof for "} <i>{&self.storage.account.clone().unwrap_or(String::from("unknown"))}</i></h2>
                     { if description != String::default() { &description } else {""}}
                 </div>
             </div>

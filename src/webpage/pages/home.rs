@@ -1,10 +1,13 @@
 use crate::js::{albedo, albedo_response};
 use crate::webpage::view::Route;
+use gloo::file::File;
 use js_sys::JsString;
+use log::info;
 use yew::prelude::*;
 
 pub struct Home {
     link: ComponentLink<Home>,
+    modal_open: bool,
 }
 
 #[derive(Debug)]
@@ -13,7 +16,8 @@ pub enum ClientEvent {
     AlbedoSuccessLogin(albedo_response::AlbedoPublicKey),
     AlbedoFailLogin(albedo_response::AlbedoError),
     InternalError(serde_json::Error),
-    Fetch,
+    ToggleProofChoice,
+    ProofUpload(Vec<File>),
 }
 
 impl Component for Home {
@@ -21,7 +25,10 @@ impl Component for Home {
     type Properties = ();
 
     fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link: link }
+        Self {
+            link: link,
+            modal_open: false,
+        }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
@@ -56,7 +63,16 @@ impl Component for Home {
                 yew_router::push_route(Route::Account { id: r.pubkey })
             }
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
-            ClientEvent::Fetch => {}
+            ClientEvent::ToggleProofChoice => {
+                self.modal_open = !self.modal_open;
+                return true;
+            }
+            ClientEvent::ProofUpload(files) => {
+                for file in files.into_iter() {
+                    info!("{}", file.name());
+                    //TODO
+                }
+            }
             _ => {}
         }
 
@@ -69,25 +85,83 @@ impl Component for Home {
 
     fn view(&self) -> Html {
         html! {
-            <div class="container is-max-desktop column">
-                   <div class="sqb-centered">
-                        <h1 class="title is-centered">{"SQ Badge Checker"}</h1>
-                        <h2 class="subtitle is-centered">{"Only here!"}</h2>
-                        <div class="columns is-4 is-variable">
-                            <div class="column is-centered">
-                                <button class="button is-primary" style="width: 100%"
-                                        onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>
-                                        {"View your Badges!"}
-                                </button>
+            <>
+                <div class="container is-max-desktop">
+                    <div class="sqb-centered">
+                            <h1 class="title is-centered">{"SQ Badge Checker"}</h1>
+                            <h2 class="subtitle is-centered">{"Only here!"}</h2>
+                            <div class="columns is-4 is-variable">
+                                <div class="column is-centered">
+                                    <button class="button is-primary" style="width: 100%"
+                                            onclick={self.link.callback(|_| ClientEvent::AlbedoRequestLogin)}>
+                                            {"View your Badges!"}
+                                    </button>
+                                </div>
+                                <div class="column">
+                                    <button class="button is-primary" style="width: 100%"
+                                            onclick={self.link.callback(|_| ClientEvent::ToggleProofChoice)}>
+                                            {"Verify Proof"}
+                                    </button>
+                                </div>
                             </div>
-                            <div class="column">
-                                <button class="button is-primary" style="width: 100%"
-                                        onclick={self.link.callback(|_| ClientEvent::Fetch)}>
-                                        {"Verify Proof."}
-                                </button>
-                            </div>
+                    </div>
+                </div>
+                {
+                    if self.modal_open {
+                        self.render_modal()
+                    } else {
+                        Html::default()
+                    }
+                }
+            </>
+        }
+    }
+}
+
+impl Home {
+    fn render_modal(&self) -> Html {
+        html! {
+            <div class="modal is-active">
+                <div class="modal-background" onclick={self.link.callback(|_| ClientEvent::ToggleProofChoice)}></div>
+                <div class="modal-content">{self.render_modal_content()}</div>
+                <button class="modal-close is-large" aria-label="close" onclick={self.link.callback(|_| ClientEvent::ToggleProofChoice)}></button>
+            </div>
+        }
+    }
+
+    fn render_modal_content(&self) -> Html {
+        html! {
+            <div class="card">
+                <div class="card-content">
+                    <div class="content">
+
+                        <h1 class="title is-centered" style="text-align: center">{"Upload proof."}</h1>
+                        <div class="file is-large is-boxed" style="display: block">
+                            <label class="file-label">
+                                <input class="file-input" type="file" name="proof" onchange={self.link.callback(move |value| {
+                                    let mut result = Vec::new();
+                                    if let ChangeData::Files(files) = value {
+                                        let files = js_sys::try_iter(&files)
+                                            .unwrap()
+                                            .unwrap()
+                                            .map(|v| web_sys::File::from(v.unwrap()))
+                                            .map(File::from);
+                                        result.extend(files);
+                                    }
+                                    ClientEvent::ProofUpload(result)
+                                })}/>
+                                <span class="file-cta">
+                                <span class="file-icon">
+                                    <i class="fas fa-upload"></i>
+                                </span>
+                                <span class="file-label">
+                                    {"Large file…"}
+                                </span>
+                                </span>
+                            </label>
                         </div>
-                   </div>
+                    </div>
+                </div>
             </div>
         }
     }
