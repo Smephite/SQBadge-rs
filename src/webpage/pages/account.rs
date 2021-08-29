@@ -167,12 +167,31 @@ fn render_series(series: &String, badges: &Vec<Badge>) -> Html {
 
 impl AccountView {
     fn view_account(&self) -> Html {
-
-        let owned_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count();
-        let completed_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).unique_by(|b| b.token.code.clone()).count();
-        let badges_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().unique_by(|b| b.token.code.clone()).count();
-
-
+        let owned_num = self
+            .storage
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .filter(|b| b.owned)
+            .count();
+        let completed_num = self
+            .storage
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .filter(|b| b.owned)
+            .unique_by(|b| b.token.code.clone())
+            .count();
+        let badges_num = self
+            .storage
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .unique_by(|b| b.token.code.clone())
+            .count();
 
         html! {
             <>
