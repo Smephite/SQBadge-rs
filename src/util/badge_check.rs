@@ -8,6 +8,12 @@ pub struct Badge {
     pub date_accuired: Option<String>,
 }
 
+impl Badge {
+    pub fn is_mono(&self) -> bool {
+        self.token.tag == String::from("mono")
+    }
+}
+
 type Result<T> = std::result::Result<T, Error>;
 
 pub async fn fetch_badges(

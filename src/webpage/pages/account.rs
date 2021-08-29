@@ -154,13 +154,26 @@ fn render_series(series: &String, badges: &Vec<Badge>) -> Html {
     html! {
         <section class="section">
         <h1 class="title" style="text-align: center">{series}</h1>
-        {badges.clone().into_iter().collect::<Html>()}
+        {
+            badges.clone().into_iter()
+            .filter(|b| b.owned)
+            .chain(badges.clone().into_iter().filter(|b| !b.is_mono()))
+            .unique_by(|b| b.token.code.clone())
+            .sorted_by(|a, b| a.token.code.cmp(&b.token.code))
+            .collect::<Html>()}
         </section>
     }
 }
 
 impl AccountView {
     fn view_account(&self) -> Html {
+
+        let owned_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count();
+        let completed_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).unique_by(|b| b.token.code.clone()).count();
+        let badges_num = self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().unique_by(|b| b.token.code.clone()).count();
+
+
+
         html! {
             <>
                 <h2 class="title" style="text-align: center">
@@ -170,10 +183,17 @@ impl AccountView {
                     </a>
                 </h2>
                 <p style="text-align: center">
-                    {" Owns "}
-                    {self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
-                    {"/"}
-                    {self.storage.available_badges.clone().unwrap_or(vec![]).len()}
+                    {format!(" Completed {}/{} Quests", completed_num, badges_num)}
+                    {
+                        if owned_num > badges_num {
+                            format!(
+                             " (Owns {} / {} including mono badges)",
+                             owned_num,
+                             self.storage.owned_badges.clone().unwrap_or(vec![]).len())
+                        } else {
+                            "".to_string()
+                        }
+                    }
                 </p>
                 <div class="badges">
                 {
