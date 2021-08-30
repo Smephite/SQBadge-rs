@@ -7,6 +7,7 @@ use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use crate::util::error;
 use crate::util::proof_encoding::Proof;
 use itertools::Itertools;
 
@@ -151,21 +152,25 @@ impl Component for AccountView {
                     .map(|b| b.token.clone())
                     .collect();
                 let data = proof.encode_v1();
-                debug!("Proof: {:?}", data);
+                info!("TODO: Proof: {:?}", data);
                 if data.is_ok() {
                     let data = data.unwrap();
                     let async_data = data.clone();
                     self.link.send_future(async {
                         let albedo_response =
                             unsafe { albedo::sign_message(JsString::from(async_data)).await };
-                        debug!("{:?}", albedo_response);
+                        if albedo_response.is_ok() {
+                            debug!("{:?}", albedo_response);
+                        } else {
+                            warn!("{:?}", albedo_response);
+                        }
                         WorkFunction::None
                     });
                     let p = Proof::decode_v1(
                         &data,
                         &self.storage.available_badges.clone().unwrap_or(vec![]),
                     );
-                    debug!("Decoded {:?}", p);
+                    info!("TODO: Decoded Proof: {:?}", p);
                 }
                 false
             }
@@ -287,7 +292,7 @@ impl AccountView {
             }
             _ => String::default(),
         };
-        info! {"{:?}", status};
+        debug! {"{:?}", status};
         html! {
             <div class="container is-max-desktop">
                 <div class="sqb-centered">
