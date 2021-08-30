@@ -1,10 +1,13 @@
+use js_sys::JsString;
 use log::{debug, info, warn};
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
 
+use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use crate::util::proof_encoding::Proof;
 use itertools::Itertools;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
@@ -21,30 +24,32 @@ pub struct AccountStorage {
 pub struct AccountView {
     link: ComponentLink<AccountView>,
     props: Props,
-    status: LoadStatus,
+    status: WorkFunction,
     storage: AccountStorage,
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum LoadStatus {
+pub enum WorkFunction {
     Begin,
     FetchAvailableBadges,
     FetchAvailableBadgesDone { available_badges: Vec<TOMLCurrency> },
     FetchOwnedBadges,
     FetchOwnedBadgesDone { owned_badges: Vec<Badge> },
     Done,
+    None,
+    CreateProof,
     Err(String),
 }
 
 impl Component for AccountView {
-    type Message = LoadStatus;
+    type Message = WorkFunction;
     type Properties = Props;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         Self {
             link: link,
             props: props,
-            status: LoadStatus::Begin,
+            status: WorkFunction::Begin,
             storage: AccountStorage::default(),
         }
     }
@@ -55,22 +60,23 @@ impl Component for AccountView {
         }
 
         if !check_valid_public_key(&self.props.account) {
-            self.link
-                .send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
+            self.link.send_message(WorkFunction::Err(String::from(
+                "Invalid ed25519 public key!",
+            )));
             return;
         }
-        self.link.send_message(LoadStatus::Begin);
+        self.link.send_message(WorkFunction::Begin);
     }
 
     fn update(&mut self, status: Self::Message) -> yew::ShouldRender {
         self.status = status.clone();
         debug!("LoadStatus: {:?}", status);
         match status {
-            LoadStatus::Begin => {
-                self.link.send_message(LoadStatus::FetchAvailableBadges);
+            WorkFunction::Begin => {
+                self.link.send_message(WorkFunction::FetchAvailableBadges);
                 false
             }
-            LoadStatus::FetchAvailableBadges => {
+            WorkFunction::FetchAvailableBadges => {
                 self.link.send_future(async {
                     let badges = stellar::fetch_toml_currencies(&String::from(
                         "https://quest.stellar.org/.well-known/stellar.toml",
@@ -81,25 +87,25 @@ impl Component for AccountView {
                         .into_iter()
                         .filter(|b| b.code.starts_with("SQ") || b.code.starts_with("SSQ"))
                         .collect();
-                    LoadStatus::FetchAvailableBadgesDone {
+                    WorkFunction::FetchAvailableBadgesDone {
                         available_badges: badges,
                     }
                 });
                 false
             }
-            LoadStatus::FetchAvailableBadgesDone { available_badges } => {
+            WorkFunction::FetchAvailableBadgesDone { available_badges } => {
                 self.storage.available_badges = Some(available_badges.clone());
-                info!("Loaded available badges: {:?}", available_badges);
-                self.link.send_message(LoadStatus::FetchOwnedBadges);
+                debug!("Loaded available badges: {:?}", available_badges);
+                self.link.send_message(WorkFunction::FetchOwnedBadges);
                 false
             }
-            LoadStatus::FetchOwnedBadges => {
+            WorkFunction::FetchOwnedBadges => {
                 let pub_key = self.props.account.clone();
                 let available_badges = self.storage.available_badges.clone();
 
                 if available_badges.is_none() {
                     warn!("Invalid load state: available badges are None!");
-                    self.link.send_message(LoadStatus::Err(String::from(
+                    self.link.send_message(WorkFunction::Err(String::from(
                         "Invalid data received for: available_badges in None!",
                     )));
                     return false;
@@ -113,27 +119,58 @@ impl Component for AccountView {
 
                     if in_possession.is_err() {
                         // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
-                        return LoadStatus::Err(format!("Error: {:?}", in_possession.err()));
+                        return WorkFunction::Err(format!("Error: {:?}", in_possession.err()));
                     }
 
-                    LoadStatus::FetchOwnedBadgesDone {
+                    WorkFunction::FetchOwnedBadgesDone {
                         owned_badges: in_possession.unwrap(),
                     }
                 });
                 false
             }
-            LoadStatus::FetchOwnedBadgesDone { owned_badges } => {
+            WorkFunction::FetchOwnedBadgesDone { owned_badges } => {
                 self.storage.owned_badges = Some(owned_badges.clone());
-                info!("Loaded owned badges: {:?}", owned_badges);
-                self.link.send_message(LoadStatus::Done);
+                debug!("Loaded owned badges: {:?}", owned_badges);
+                self.link.send_message(WorkFunction::Done);
                 false
             }
-            LoadStatus::Done => {
-                info!("Finished Loading!");
-                info!("{:?}", self.storage);
+            WorkFunction::Done => {
+                debug!("Finished Loading!");
+                debug!("{:?}", self.storage);
                 true
             }
-            LoadStatus::Err(_) => true,
+            WorkFunction::CreateProof => {
+                let mut proof = Proof::default();
+                proof.owned_badges = self
+                    .storage
+                    .owned_badges
+                    .clone()
+                    .unwrap_or(vec![])
+                    .into_iter()
+                    .filter(|b| b.owned)
+                    .map(|b| b.token.clone())
+                    .collect();
+                let data = proof.encode_v1();
+                debug!("Proof: {:?}", data);
+                if data.is_ok() {
+                    let data = data.unwrap();
+                    let async_data = data.clone();
+                    self.link.send_future(async {
+                        let albedo_response =
+                            unsafe { albedo::sign_message(JsString::from(async_data)).await };
+                        debug!("{:?}", albedo_response);
+                        WorkFunction::None
+                    });
+                    let p = Proof::decode_v1(
+                        &data,
+                        &self.storage.available_badges.clone().unwrap_or(vec![]),
+                    );
+                    debug!("Decoded {:?}", p);
+                }
+                false
+            }
+            WorkFunction::None => false,
+            WorkFunction::Err(_) => true,
         }
     }
 
@@ -143,8 +180,8 @@ impl Component for AccountView {
 
     fn view(&self) -> yew::Html {
         match self.status.clone() {
-            LoadStatus::Err(msg) => self.view_err(&msg),
-            LoadStatus::Done => self.view_account(),
+            WorkFunction::Err(msg) => self.view_err(&msg),
+            WorkFunction::Done => self.view_account(),
             other => self.view_loading(other),
         }
     }
@@ -231,17 +268,21 @@ impl AccountView {
                         .collect::<Html>()
                 }
                 </div>
+                <button onclick={self.link.callback(|_| WorkFunction::CreateProof)} class="button is-floating is-primary">
+                    <i class="fas fa-key"></i>
+                </button>
             </>
         }
     }
-    fn view_loading(&self, status: LoadStatus) -> Html {
+    fn view_loading(&self, status: WorkFunction) -> Html {
         let description = match status {
-            LoadStatus::Begin
-            | LoadStatus::FetchAvailableBadges
-            | LoadStatus::FetchAvailableBadgesDone {
+            WorkFunction::Begin
+            | WorkFunction::FetchAvailableBadges
+            | WorkFunction::FetchAvailableBadgesDone {
                 available_badges: _,
             } => String::from("Fetching all available badges..."),
-            LoadStatus::FetchOwnedBadges | LoadStatus::FetchOwnedBadgesDone { owned_badges: _ } => {
+            WorkFunction::FetchOwnedBadges
+            | WorkFunction::FetchOwnedBadgesDone { owned_badges: _ } => {
                 String::from("Verifying users badges...")
             }
             _ => String::default(),

@@ -19,6 +19,7 @@ toml="0.5.3"
 urldecode="0.1.1"
 itertools="0.10.1"
 gloo = "0.2"
+chrono="0.4.19"
 
 [dependencies.web-sys]
 version = "0.3.4"
