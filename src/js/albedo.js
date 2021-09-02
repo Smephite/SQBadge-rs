@@ -10,6 +10,11 @@ export async function signMessage(message) {
     return albedo_sign_message(message);
 }
 
+export async function signMessagePubKey(message, pubKey)
+{
+    return albedo_sign_message(message, pubKey);
+}
+
 export async function albedo_view_public_key(token = "", callback = "", require_existing = false) {
     return albedo.publicKey({
         token: token,

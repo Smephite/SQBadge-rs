@@ -8,4 +8,9 @@ extern "C" {
     pub async fn public_key(token: JsString) -> Result<JsValue, JsValue>;
     #[wasm_bindgen(js_name = "signMessage", catch)]
     pub async fn sign_message(message: JsString) -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(js_name = "signMessagePubKey", catch)]
+    pub async fn sign_message_pubkey(
+        message: JsString,
+        pubKey: JsString,
+    ) -> Result<JsValue, JsValue>;
 }

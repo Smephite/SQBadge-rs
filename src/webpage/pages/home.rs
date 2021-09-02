@@ -1,8 +1,6 @@
 use crate::js::{albedo, albedo_response};
 use crate::webpage::view::Route;
-use gloo::file::File;
 use js_sys::JsString;
-use log::info;
 use yew::prelude::*;
 
 pub struct Home {
@@ -17,7 +15,7 @@ pub enum ClientEvent {
     AlbedoFailLogin(albedo_response::AlbedoError),
     InternalError(serde_json::Error),
     ToggleProofChoice,
-    ProofUpload(Vec<File>),
+    ProofUpload(),
 }
 
 impl Component for Home {
@@ -67,12 +65,7 @@ impl Component for Home {
                 self.modal_open = !self.modal_open;
                 return true;
             }
-            ClientEvent::ProofUpload(files) => {
-                for file in files.into_iter() {
-                    info!("{}", file.name());
-                    //TODO
-                }
-            }
+            ClientEvent::ProofUpload() => {}
             _ => {}
         }
 
@@ -139,16 +132,8 @@ impl Home {
                         <div class="file is-large is-boxed" style="display: block">
                             <label class="file-label">
                                 <input class="file-input" type="file" name="proof" onchange={self.link.callback(move |value| {
-                                    let mut result = Vec::new();
-                                    if let ChangeData::Files(files) = value {
-                                        let files = js_sys::try_iter(&files)
-                                            .unwrap()
-                                            .unwrap()
-                                            .map(|v| web_sys::File::from(v.unwrap()))
-                                            .map(File::from);
-                                        result.extend(files);
-                                    }
-                                    ClientEvent::ProofUpload(result)
+
+                                    ClientEvent::ProofUpload()
                                 })}/>
                                 <span class="file-cta">
                                 <span class="file-icon">

@@ -1,13 +1,16 @@
 use js_sys::JsString;
-use log::{debug, info, warn};
+use log::{debug, warn};
+use serde_json::Value;
+use wasm_bindgen::JsValue;
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
+
+use base64;
 
 use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
-use crate::util::error;
 use crate::util::proof_encoding::Proof;
 use itertools::Itertools;
 
@@ -39,6 +42,7 @@ pub enum WorkFunction {
     Done,
     None,
     CreateProof,
+    ProofSignDone(Result<JsValue, JsValue>),
     Err(String),
 }
 
@@ -141,6 +145,7 @@ impl Component for AccountView {
                 true
             }
             WorkFunction::CreateProof => {
+                //TODO: date and identifier
                 let mut proof = Proof::default();
                 proof.owned_badges = self
                     .storage
@@ -152,27 +157,29 @@ impl Component for AccountView {
                     .map(|b| b.token.clone())
                     .collect();
                 let data = proof.encode_v1();
-                info!("TODO: Proof: {:?}", data);
                 if data.is_ok() {
                     let data = data.unwrap();
-                    let async_data = data.clone();
+                    let pub_key = self.props.account.clone();
                     self.link.send_future(async {
-                        let albedo_response =
-                            unsafe { albedo::sign_message(JsString::from(async_data)).await };
-                        if albedo_response.is_ok() {
-                            debug!("{:?}", albedo_response);
-                        } else {
-                            warn!("{:?}", albedo_response);
-                        }
-                        WorkFunction::None
+                        let albedo_response = unsafe {
+                            albedo::sign_message_pubkey(
+                                JsString::from(data),
+                                JsString::from(pub_key),
+                            )
+                            .await
+                        };
+                        WorkFunction::ProofSignDone(albedo_response)
                     });
-                    let p = Proof::decode_v1(
-                        &data,
-                        &self.storage.available_badges.clone().unwrap_or(vec![]),
-                    );
-                    info!("TODO: Decoded Proof: {:?}", p);
                 }
                 false
+            }
+            WorkFunction::ProofSignDone(response) => {
+                if response.is_ok() {
+                    debug!("{:?}", response);
+                } else {
+                    warn!("{:?}", response);
+                }
+                true
             }
             WorkFunction::None => false,
             WorkFunction::Err(_) => true,
@@ -186,7 +193,7 @@ impl Component for AccountView {
     fn view(&self) -> yew::Html {
         match self.status.clone() {
             WorkFunction::Err(msg) => self.view_err(&msg),
-            WorkFunction::Done => self.view_account(),
+            WorkFunction::Done | WorkFunction::ProofSignDone(_) => self.view_account(),
             other => self.view_loading(other),
         }
     }
@@ -237,13 +244,13 @@ impl AccountView {
 
         html! {
             <>
-                <h2 class="title" style="text-align: center">
+                <h2 class="title mid-center" style="text-align: center">
                     {"Account "}
                     <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.props.account)}>
                         {&self.props.account}
                     </a>
                 </h2>
-                <p style="text-align: center">
+                <p style="text-align: center" class="mid-center">
                     {format!(" Completed {}/{} Quests", completed_num, badges_num)}
                     {
                         if owned_num > badges_num {
@@ -256,6 +263,13 @@ impl AccountView {
                         }
                     }
                 </p>
+                {
+                    if let WorkFunction::ProofSignDone(_) = self.status.clone() {
+                        self.view_proof_sign_response()
+                    } else {
+                        "".to_string().into()
+                    }
+                }
                 <div class="badges">
                 {
                     self.storage.owned_badges.clone()
@@ -279,6 +293,91 @@ impl AccountView {
             </>
         }
     }
+
+    fn view_proof_sign_response(&self) -> Html {
+        if let WorkFunction::ProofSignDone(response) = self.status.clone() {
+            let message: String;
+            let message_header: String;
+            let class: String;
+
+            match response {
+                Ok(resp) => {
+                    let mut message_opt: Option<String> = None;
+                    let mut message_class_opt: Option<String> = None;
+                    let mut message_header_opt: Option<String> = None;
+                    if let Ok(resp) = resp.into_serde::<Value>() {
+                        let resp = resp.as_object().unwrap(); // todo make safe again
+
+                        if resp.get("intent").unwrap().as_str() == Some("sign_message") {
+                            let _included_message = resp.get("message").unwrap().as_str().unwrap();
+                            let message_signature =
+                                resp.get("message_signature").unwrap().as_str().unwrap();
+                            let pub_key = resp.get("pubkey").unwrap().as_str().unwrap();
+                            let signed_message =
+                                resp.get("signed_message").unwrap().as_str().unwrap();
+
+                            if pub_key == self.props.account {
+                                message_header_opt = Some(String::from("Success"));
+                                message_class_opt = Some("is-success".to_string());
+
+                                let interesting =
+                                    format!("{}%{}", message_signature, signed_message);
+
+                                message_opt = Some(base64::encode(interesting));
+                            } else {
+                                message_opt = Some("Signing key does not match!".to_string());
+                            }
+                        } else {
+                            message_opt = Some("Wrong intent!".to_string());
+                        }
+                    }
+
+                    class = message_class_opt.unwrap_or("is-danger".to_string());
+                    message_header = message_header_opt.unwrap_or("Error".to_string());
+                    message = message_opt.unwrap_or("unknown".to_string());
+                }
+                Err(err) => {
+                    let err: serde_json::Result<serde_json::Value> = err.into_serde();
+
+                    let get_err =
+                        |err: serde_json::Result<serde_json::Value>| -> serde_json::Result<String> {
+                            let err = err?;
+
+                            let err = err.as_object().unwrap(); // todo make safe again
+
+                            let err_msg = err.get("message").unwrap().as_str().unwrap();
+
+                            Ok(format!("Albedo: {}", err_msg))
+                        };
+
+                    if let Ok(err) = get_err(err) {
+                        message = err;
+                    } else {
+                        message = "unknown".to_string();
+                    }
+
+                    message_header = String::from("Signing Error");
+                    class = "is-danger".to_string();
+                }
+            };
+
+            let classes = vec!["message".to_string(), "mid-center".to_string(), class];
+
+            return html! {
+                <article class={classes} style="margin-top: 1.5rem; margin-bottom: 0">
+                    <div class="message-header">
+                        <p>{message_header}</p>
+                    </div>
+                    <div class="message-body" style="word-break: break-all;">
+                        {message}
+                    </div>
+                </article>
+            };
+        }
+
+        return html!("");
+    }
+
     fn view_loading(&self, status: WorkFunction) -> Html {
         let description = match status {
             WorkFunction::Begin
