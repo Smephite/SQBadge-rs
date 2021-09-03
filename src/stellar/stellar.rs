@@ -1,20 +1,27 @@
 use crate::js::fetch;
 use crate::stellar::stellar_data;
 use crate::util::error::{Error, StellarErr};
+use log::debug;
 use serde_json::Value;
 use toml::Value as tomlValue;
 use wasm_bindgen::JsValue;
+use web_sys::console::debug;
 static HORIZONT_ENDPOINT: &str = "https://horizon.stellar.org/";
 
 type Result<T> = std::result::Result<T, Error>;
 
 #[allow(dead_code)]
-pub async fn fetch_account(id: &String) -> std::result::Result<stellar_data::Account, JsValue> {
+pub async fn fetch_account(id: &String) -> Result<stellar_data::Account> {
     let mut url = String::from(HORIZONT_ENDPOINT);
     url.push_str("accounts/");
     url.push_str(&id);
-    let json = fetch::get_json(&url).await?;
-    let acc: stellar_data::Account = json.into_serde().unwrap();
+    let json = fetch::get_json(&url).await;
+
+    if json.is_err() {
+        return Err(Error::Other(json.err().unwrap().as_string().unwrap()));
+    }
+
+    let acc: stellar_data::Account = json.unwrap().into_serde().unwrap();
     Ok(acc)
 }
 
@@ -61,6 +68,68 @@ pub async fn fetch_account_payments(id: &String) -> Result<Vec<stellar_data::Ope
         all_payments.append(&mut payment_data);
     }
     Ok(all_payments)
+}
+
+pub async fn search_created_claimed_balances(
+    issuer: &String,
+    asset: &String,
+    needle_account: &String,
+) -> Option<stellar_data::OperationClaimableBalance> {
+    debug!("Searching for asset {} in claimable balances", asset);
+    let mut url = String::from(HORIZONT_ENDPOINT);
+    url.push_str("accounts/");
+    url.push_str(&issuer);
+    url.push_str("/operations?limit=200&order=desc");
+
+    let mut next_url = url.clone();
+    loop {
+        let json = fetch::get_json(&next_url).await;
+        if json.is_err() {
+            break;
+        }
+
+        let data: Value = json.ok().unwrap().into_serde().unwrap();
+        let next = data.pointer("/_links/next/href");
+
+        if next.is_none() {
+            return None;
+        }
+
+        next_url = urldecode::decode(String::from(next.unwrap().as_str().unwrap()));
+        let records = data.pointer("/_embedded/records").unwrap().clone();
+        let operation_data: Vec<stellar_data::OperationClaimableBalance> =
+            serde_json::from_value(records).unwrap();
+        if operation_data.len() == 0 {
+            return None;
+        }
+
+        for operation in operation_data {
+            let op_clone = operation.clone();
+            if operation.type_i != 14 {
+                // is not claimable balance
+                continue;
+            }
+
+            if &operation.asset != asset {
+                continue;
+            }
+
+            let claimants = operation.claimants;
+
+            for c in claimants {
+                if c.is_object() {
+                    let c = c.as_object().unwrap();
+                    if c.contains_key("destination")
+                        && c.get("destination").unwrap().as_str().unwrap()
+                            == needle_account.as_str()
+                    {
+                        return Some(op_clone);
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 #[allow(dead_code)]

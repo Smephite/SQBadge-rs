@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 #[serde(default)]
@@ -8,7 +9,7 @@ pub struct Account {
     pub balances: Vec<Balance>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 #[serde(default)]
 pub struct Balance {
     pub balance: String,
@@ -30,6 +31,17 @@ pub struct OperationPayment {
     pub asset_issuer: String,
     pub from: String,
     pub to: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(default)]
+pub struct OperationClaimableBalance {
+    pub id: String,
+    pub source_account: String,
+    pub type_i: usize,
+    pub transaction_hash: String,
+    pub claimants: Vec<Value>,
+    pub asset: String,
 }
 
 #[derive(Deserialize, Default, Debug, Clone, PartialEq)]
