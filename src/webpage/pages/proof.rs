@@ -30,7 +30,7 @@ pub struct ProofVerify {
     props: Props,
     status: LoadStatus,
     proof: ProofStorage,
-    decoded_proof: Option<(bool, String, String)>
+    decoded_proof: Option<(bool, String, String)>,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -56,7 +56,7 @@ impl Component for ProofVerify {
             props: props,
             status: LoadStatus::None,
             proof: ProofStorage::default(),
-            decoded_proof: None
+            decoded_proof: None,
         }
     }
 
@@ -170,7 +170,15 @@ impl Component for ProofVerify {
 
 impl ProofVerify {
     fn render_series(&self, series: &String, badges: &Vec<Badge>) -> Html {
-        let claimed_owned_badges = self.proof.proof_claim.clone().unwrap().owned_badges.into_iter().map(|t| t.code).collect::<Vec<String>>();
+        let claimed_owned_badges = self
+            .proof
+            .proof_claim
+            .clone()
+            .unwrap()
+            .owned_badges
+            .into_iter()
+            .map(|t| t.code)
+            .collect::<Vec<String>>();
 
         let colored_badges = badges
             .clone()
@@ -307,10 +315,7 @@ impl ProofVerify {
     }
 
     fn decrypt_proof(&mut self) -> bool {
-
-
         let proof = proof_encoding::verify_albedo_signed_message(&self.props.proof);
-
 
         if proof.is_none() {
             return false;
@@ -327,7 +332,6 @@ impl ProofVerify {
     }
 
     fn decrypt_badges(&mut self) -> bool {
-
         let proof = self.decoded_proof.clone();
         if self.proof.available_badges.is_none() {
             return false;
@@ -353,4 +357,3 @@ impl ProofVerify {
         return true;
     }
 }
-
