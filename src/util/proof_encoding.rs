@@ -15,11 +15,6 @@ pub struct Proof {
 
 impl Proof {
     pub fn encode_v1(&self) -> Result<String, Error> {
-        if self.unique_id.is_some() && self.unique_id.clone().unwrap().contains("§§") {
-            return Err(Error::Other(String::from(
-                "Proof unique id must not contain string '§§'",
-            )));
-        }
         let owned_badges = self
             .owned_badges
             .clone()
@@ -35,6 +30,9 @@ impl Proof {
                     task = 0; // special badges are 1 per series
                     series = iter.next().unwrap().to_digit(10).unwrap() * 10;
                     series += iter.next().unwrap().to_digit(10).unwrap();
+                    //   SSQ        xx
+                    //    v         v
+                    // \ void /  $series
                 } else {
                     iter.nth(1); // skip 2
 
@@ -42,6 +40,9 @@ impl Proof {
                     series += iter.next().unwrap().to_digit(10).unwrap();
                     task = iter.next().unwrap().to_digit(10).unwrap() * 10;
                     task += iter.next().unwrap().to_digit(10).unwrap();
+                    //    SQ      xx     xx
+                    //    v        v      v
+                    // \ void / $series $task
                 }
 
                 (series as u8, task as u8)
@@ -53,11 +54,20 @@ impl Proof {
             if b.1 > 8 {
                 continue; // only allow 8+1 badges per series
             }
-            debug!("S{}Q{} -> {}", b.0, b.1, translated[b.0 as usize - 1]);
             translated[b.0 as usize - 1] = translated[b.0 as usize - 1] + (1 << b.1);
+            debug!(
+                "S{}Q{} -> {}:{}",
+                b.0,
+                b.1,
+                b.0,
+                translated[b.0 as usize - 1]
+            );
+            // each series (index from 0) has one byte of storage where the LSB is Q00 (SSQ) and MSB is Q07
+            // bit == 1 <=> user owns badge
+            // encoding may be prefixed with zeros (-> any new quests are automatically set to not be owned)
         }
 
-        debug!("{:?}", translated);
+        debug!("translated values per quest: {:?}", translated);
 
         let value = translated
             .into_iter()
@@ -65,7 +75,7 @@ impl Proof {
             .fold(0usize, |old, (index, val)| old + (val << 9 * index)); // 9 badges per series
 
         Ok(format!(
-            "v1§§{:x}§§{}§§{}",
+            "v1.{:x}.{}.{}",
             value,
             self.timestamp.unwrap_or(0),
             self.unique_id.clone().unwrap_or(String::default())
@@ -76,10 +86,10 @@ impl Proof {
         encoded: &String,
         available_badges: &Vec<TOMLCurrency>,
     ) -> Result<Proof, Error> {
-        let mut parts = encoded.split("§§");
+        let mut parts = encoded.split(".");
         let parts_arr = parts.clone().collect::<Vec<&str>>();
         debug!("decoding proof({}): {:?}", encoded, parts_arr);
-        if parts_arr.len() != 4 {
+        if parts_arr.len() < 4 {
             return Err(Error::ProofErr(ProofErr::ProofInvalidEncoding));
         }
         if parts.next().unwrap() != "v1" {
@@ -87,12 +97,9 @@ impl Proof {
         }
         let badges = parts.next().unwrap();
         let datetime = parts.next().unwrap();
-        let unique_id = parts.next().unwrap();
 
-        if parts.next().is_some() {
-            // ????
-            return Err(Error::Unknown); // this should never happen as we checked for length == 4
-        }
+        let mut unique_id = String::new();
+        parts.for_each(|p| unique_id.push_str(p));
 
         let mut final_proof = Proof::default();
 

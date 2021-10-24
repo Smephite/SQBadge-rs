@@ -1,11 +1,14 @@
 use crate::js::{albedo, albedo_response};
 use crate::webpage::view::Route;
 use js_sys::JsString;
+use log::debug;
+use web_sys::console::debug;
 use yew::prelude::*;
 
 pub struct Home {
     link: ComponentLink<Home>,
     modal_open: bool,
+    proof_text: String,
 }
 
 #[derive(Debug)]
@@ -15,7 +18,8 @@ pub enum ClientEvent {
     AlbedoFailLogin(albedo_response::AlbedoError),
     InternalError(serde_json::Error),
     ToggleProofChoice,
-    ProofUpload(),
+    ProofUpload,
+    ModalProofTextChange(String),
 }
 
 impl Component for Home {
@@ -26,6 +30,7 @@ impl Component for Home {
         Self {
             link: link,
             modal_open: false,
+            proof_text: String::new(),
         }
     }
 
@@ -63,9 +68,22 @@ impl Component for Home {
             ClientEvent::AlbedoFailLogin(r) => log::info!("Albedo login fail: {:?}", r),
             ClientEvent::ToggleProofChoice => {
                 self.modal_open = !self.modal_open;
+
+                if self.modal_open {
+                    self.proof_text = String::new();
+                }
+
                 return true;
             }
-            ClientEvent::ProofUpload() => {}
+            ClientEvent::ProofUpload => {
+                debug!("checking proof: {}", self.proof_text);
+                yew_router::push_route(Route::Proof {
+                    id: self.proof_text.clone(),
+                });
+            }
+            ClientEvent::ModalProofTextChange(proof) => {
+                self.proof_text = proof;
+            }
             _ => {}
         }
 
@@ -123,27 +141,18 @@ impl Home {
     }
 
     fn render_modal_content(&self) -> Html {
+        let proof_text_change = self
+            .link
+            .callback(|e: InputData| ClientEvent::ModalProofTextChange(e.value));
         html! {
             <div class="card">
                 <div class="card-content">
                     <div class="content">
 
                         <h1 class="title is-centered" style="text-align: center">{"Upload proof."}</h1>
-                        <div class="file is-large is-boxed" style="display: block">
-                            <label class="file-label">
-                                <input class="file-input" type="file" name="proof" onchange={self.link.callback(move |value| {
-
-                                    ClientEvent::ProofUpload()
-                                })}/>
-                                <span class="file-cta">
-                                <span class="file-icon">
-                                    <i class="fas fa-upload"></i>
-                                </span>
-                                <span class="file-label">
-                                    {"Large file…"}
-                                </span>
-                                </span>
-                            </label>
+                        <textarea class="textarea" placeholder="Enter signed Proof..." name="proof" oninput={proof_text_change}/>
+                        <div class="mt-1" style="display: flex; justify-content: flex-end">
+                            <button class="button is-primary" onclick={self.link.callback(|_| ClientEvent::ProofUpload)}>{"Check"}</button>
                         </div>
                     </div>
                 </div>

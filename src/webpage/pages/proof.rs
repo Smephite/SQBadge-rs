@@ -23,7 +23,7 @@ pub struct ProofVerify {
     link: ComponentLink<ProofVerify>,
     props: Props,
     status: LoadStatus,
-    storage: ProofStorage,
+    proof: ProofStorage,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -47,7 +47,7 @@ impl Component for ProofVerify {
             link: link,
             props: props,
             status: LoadStatus::None,
-            storage: ProofStorage::default(),
+            proof: ProofStorage::default(),
         }
     }
 
@@ -56,15 +56,28 @@ impl Component for ProofVerify {
             return;
         }
 
-        if self.storage.account.is_none() {
+        let proof_storage = decrypt_proof(&self.props.proof);
+
+        if proof_storage.is_none() {
+            debug!("Invalid proof!");
+            self.link
+                .send_message(LoadStatus::Err(String::from("Invalid proof!")));
             return;
         }
 
-        if !check_valid_public_key(&self.storage.account.clone().unwrap()) {
+        self.proof = proof_storage.unwrap();
+
+        if self.proof.account.is_none() {
+            return;
+        }
+
+        if !check_valid_public_key(&self.proof.account.clone().unwrap()) {
+            debug!("Invalid pubkey!");
             self.link
                 .send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
             return;
         }
+        debug!("Valid pubkey: Begining load!");
         self.link.send_message(LoadStatus::Begin);
     }
 
@@ -94,14 +107,14 @@ impl Component for ProofVerify {
                 false
             }
             LoadStatus::FetchAvailableBadgesDone { available_badges } => {
-                self.storage.available_badges = Some(available_badges.clone());
+                self.proof.available_badges = Some(available_badges.clone());
                 info!("Loaded available badges: {:?}", available_badges);
                 self.link.send_message(LoadStatus::FetchOwnedBadges);
                 false
             }
             LoadStatus::FetchOwnedBadges => {
-                let pub_key = self.storage.account.clone().unwrap().clone();
-                let available_badges = self.storage.available_badges.clone();
+                let pub_key = self.proof.account.clone().unwrap().clone();
+                let available_badges = self.proof.available_badges.clone();
 
                 if available_badges.is_none() {
                     warn!("Invalid load state: available badges are None!");
@@ -129,14 +142,14 @@ impl Component for ProofVerify {
                 false
             }
             LoadStatus::FetchOwnedBadgesDone { owned_badges } => {
-                self.storage.owned_badges = Some(owned_badges.clone());
+                self.proof.owned_badges = Some(owned_badges.clone());
                 info!("Loaded owned badges: {:?}", owned_badges);
                 self.link.send_message(LoadStatus::Done);
                 false
             }
             LoadStatus::Done => {
                 info!("Finished Loading!");
-                info!("{:?}", self.storage);
+                info!("{:?}", self.proof);
                 true
             }
             _ => true,
@@ -171,19 +184,19 @@ impl ProofVerify {
             <>
                 <h2 class="title" style="text-align: center">
                     {"Account "}
-                    <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.storage.account.clone().unwrap())}>
-                        {&self.storage.account.clone().unwrap()}
+                    <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.proof.account.clone().unwrap())}>
+                        {&self.proof.account.clone().unwrap()}
                     </a>
                 </h2>
                 <p style="text-align: center">
                     {" Owns "}
-                    {self.storage.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
+                    {self.proof.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
                     {"/"}
-                    {self.storage.available_badges.clone().unwrap_or(vec![]).len()}
+                    {self.proof.available_badges.clone().unwrap_or(vec![]).len()}
                 </p>
                 <div class="badges">
                 {
-                    self.storage.owned_badges.clone()
+                    self.proof.owned_badges.clone()
                         .unwrap_or(vec![]).into_iter()
                         .group_by(|badge| {
                             let mut series = badge.token.code.clone();
@@ -217,7 +230,7 @@ impl ProofVerify {
         html! {
             <div class="container is-max-desktop">
                 <div class="sqb-centered">
-                    <h2 class="subtitle is-centered">{"Verifying Proof for "} <i>{&self.storage.account.clone().unwrap_or(String::from("unknown"))}</i></h2>
+                    <h2 class="subtitle is-centered">{"Verifying Proof for "} <i>{&self.proof.account.clone().unwrap_or(String::from("unknown"))}</i></h2>
                     { if description != String::default() { &description } else {""}}
                 </div>
             </div>
@@ -232,4 +245,9 @@ impl ProofVerify {
 
 fn check_valid_public_key(_: &String) -> bool {
     true
+}
+
+fn decrypt_proof(proof: &String) -> Option<ProofStorage> {
+    debug!("Trying to decrypt proof {}", proof);
+    None
 }
