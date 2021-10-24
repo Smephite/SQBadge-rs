@@ -321,7 +321,7 @@ impl AccountView {
                                 message_class_opt = Some("is-success".to_string());
 
                                 let interesting =
-                                    format!("{}%{}", message_signature, signed_message);
+                                    format!("{}:{}", message_signature, signed_message);
 
                                 message_opt = Some(base64::encode(interesting));
                             } else {

@@ -2,9 +2,13 @@ use log::{debug, info, warn};
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
 
+use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use crate::util::proof_encoding::{self, Proof};
+use crate::webpage::components::badge::BadgeCard;
+use crate::webpage::html_implements;
 use itertools::Itertools;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
@@ -15,8 +19,10 @@ pub struct Props {
 #[derive(Clone, Debug, PartialEq, Properties, Default)]
 pub struct ProofStorage {
     pub available_badges: Option<Vec<TOMLCurrency>>,
+    pub proof_claim: Option<Proof>,
     pub owned_badges: Option<Vec<Badge>>,
     pub account: Option<String>,
+    pub valid: bool,
 }
 
 pub struct ProofVerify {
@@ -24,6 +30,7 @@ pub struct ProofVerify {
     props: Props,
     status: LoadStatus,
     proof: ProofStorage,
+    decoded_proof: Option<(bool, String, String)>
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -31,6 +38,7 @@ pub enum LoadStatus {
     Begin,
     FetchAvailableBadges,
     FetchAvailableBadgesDone { available_badges: Vec<TOMLCurrency> },
+    CheckProof,
     FetchOwnedBadges,
     FetchOwnedBadgesDone { owned_badges: Vec<Badge> },
     Done,
@@ -48,6 +56,7 @@ impl Component for ProofVerify {
             props: props,
             status: LoadStatus::None,
             proof: ProofStorage::default(),
+            decoded_proof: None
         }
     }
 
@@ -56,28 +65,6 @@ impl Component for ProofVerify {
             return;
         }
 
-        let proof_storage = decrypt_proof(&self.props.proof);
-
-        if proof_storage.is_none() {
-            debug!("Invalid proof!");
-            self.link
-                .send_message(LoadStatus::Err(String::from("Invalid proof!")));
-            return;
-        }
-
-        self.proof = proof_storage.unwrap();
-
-        if self.proof.account.is_none() {
-            return;
-        }
-
-        if !check_valid_public_key(&self.proof.account.clone().unwrap()) {
-            debug!("Invalid pubkey!");
-            self.link
-                .send_message(LoadStatus::Err(String::from("Invalid ed25519 public key!")));
-            return;
-        }
-        debug!("Valid pubkey: Begining load!");
         self.link.send_message(LoadStatus::Begin);
     }
 
@@ -86,8 +73,9 @@ impl Component for ProofVerify {
         debug!("LoadStatus: {:?}", status);
         match status {
             LoadStatus::Begin => {
+                self.decrypt_proof();
                 self.link.send_message(LoadStatus::FetchAvailableBadges);
-                false
+                true
             }
             LoadStatus::FetchAvailableBadges => {
                 self.link.send_future(async {
@@ -109,7 +97,18 @@ impl Component for ProofVerify {
             LoadStatus::FetchAvailableBadgesDone { available_badges } => {
                 self.proof.available_badges = Some(available_badges.clone());
                 info!("Loaded available badges: {:?}", available_badges);
-                self.link.send_message(LoadStatus::FetchOwnedBadges);
+                self.link.send_message(LoadStatus::CheckProof);
+                false
+            }
+            LoadStatus::CheckProof => {
+                let err_decrypting = !self.decrypt_badges();
+
+                if err_decrypting {
+                    self.link
+                        .send_message(LoadStatus::Err(String::from("Invalid proof!")));
+                } else {
+                    self.link.send_message(LoadStatus::FetchOwnedBadges);
+                }
                 false
             }
             LoadStatus::FetchOwnedBadges => {
@@ -169,31 +168,96 @@ impl Component for ProofVerify {
     }
 }
 
-fn render_series(series: &String, badges: &Vec<Badge>) -> Html {
-    html! {
-        <section class="section">
-        <h1 class="title" style="text-align: center">{series}</h1>
-        {badges.clone().into_iter().collect::<Html>()}
-        </section>
-    }
-}
-
 impl ProofVerify {
+    fn render_series(&self, series: &String, badges: &Vec<Badge>) -> Html {
+        let claimed_owned_badges = self.proof.proof_claim.clone().unwrap().owned_badges.into_iter().map(|t| t.code).collect::<Vec<String>>();
+
+        let colored_badges = badges
+            .clone()
+            .into_iter()
+            .filter(|b| b.owned)
+            .chain(badges.clone().into_iter().filter(|b| !b.is_mono()))
+            .unique_by(|b| b.token.code.clone())
+            .sorted_by(|a, b| a.token.code.cmp(&b.token.code))
+            .map(|b| -> Html{
+                html!{
+                    <BadgeCard badge={b.clone()} valid={!(claimed_owned_badges.contains(&b.token.code) ^ b.owned)}/>
+                }
+            })
+            .collect::<Html>();
+
+        html! {
+            <section class="section">
+            <h1 class="title" style="text-align: center">{series}</h1>
+            {
+                colored_badges
+            }
+            </section>
+        }
+    }
     fn view_account(&self) -> Html {
+        let owned_num = self
+            .proof
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .filter(|b| b.owned)
+            .count();
+        let completed_num = self
+            .proof
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .filter(|b| b.owned)
+            .unique_by(|b| b.token.code.clone())
+            .count();
+        let badges_num = self
+            .proof
+            .owned_badges
+            .clone()
+            .unwrap_or(vec![])
+            .into_iter()
+            .unique_by(|b| b.token.code.clone())
+            .count();
+
+        let claimed_num = self
+            .proof
+            .proof_claim
+            .clone()
+            .unwrap_or(Proof::default())
+            .owned_badges
+            .into_iter()
+            .unique_by(|b| b.code.clone())
+            .count();
+
         html! {
             <>
-                <h2 class="title" style="text-align: center">
+                <h2 class="title mid-center" style="text-align: center">
                     {"Account "}
                     <a href={format!("https://stellar.expert/explorer/public/account/{}", &self.proof.account.clone().unwrap())}>
                         {&self.proof.account.clone().unwrap()}
                     </a>
                 </h2>
-                <p style="text-align: center">
-                    {" Owns "}
-                    {self.proof.owned_badges.clone().unwrap_or(vec![]).into_iter().filter(|b| b.owned).count()}
-                    {"/"}
-                    {self.proof.available_badges.clone().unwrap_or(vec![]).len()}
+                <p style="text-align: center" class="mid-center">
+                    {format!(" Completed {}/{} Quests", completed_num, badges_num)}
+                    {
+                        if owned_num > badges_num {
+                            format!(
+                             " (Owns {} / {} including mono badges)",
+                             owned_num,
+                             self.proof.owned_badges.clone().unwrap_or(vec![]).len())
+                        } else {
+                            "".to_string()
+                        }
+                    }
                 </p>
+
+                <p style="text-align: center; color:red" class="mid-center" hidden={claimed_num == owned_num}>
+                    {format!("Invalid Proof! Claimed to have completed {} quests!", claimed_num)}
+                </p>
+
                 <div class="badges">
                 {
                     self.proof.owned_badges.clone()
@@ -207,7 +271,7 @@ impl ProofVerify {
                             }
                             series
                         }).into_iter()
-                        .map(|(series, badges)|render_series(&series, &badges.collect()))
+                        .map(|(series, badges)|self.render_series(&series, &badges.collect()))
                         .collect::<Html>()
                 }
                 </div>
@@ -241,13 +305,52 @@ impl ProofVerify {
             <p>{"Error: "}{message}</p>
         }
     }
+
+    fn decrypt_proof(&mut self) -> bool {
+
+
+        let proof = proof_encoding::verify_albedo_signed_message(&self.props.proof);
+
+
+        if proof.is_none() {
+            return false;
+        }
+
+        let proof = proof.unwrap();
+
+        self.decoded_proof = Some(proof.clone());
+
+        self.proof.valid = proof.0;
+        self.proof.account = Some(proof.2);
+
+        return true;
+    }
+
+    fn decrypt_badges(&mut self) -> bool {
+
+        let proof = self.decoded_proof.clone();
+        if self.proof.available_badges.is_none() {
+            return false;
+        }
+        if proof.is_none() {
+            return false;
+        }
+
+        let proof = proof.unwrap();
+
+        let decrypted_badges = proof_encoding::Proof::decode_v1(
+            &proof.1,
+            &self.proof.available_badges.clone().unwrap(),
+        );
+
+        if decrypted_badges.is_err() {
+            return false;
+        }
+        let decrypted_badges = decrypted_badges.unwrap();
+
+        debug!("Proof claims ownership over: {:?}", decrypted_badges);
+        self.proof.proof_claim = Some(decrypted_badges);
+        return true;
+    }
 }
 
-fn check_valid_public_key(_: &String) -> bool {
-    true
-}
-
-fn decrypt_proof(proof: &String) -> Option<ProofStorage> {
-    debug!("Trying to decrypt proof {}", proof);
-    None
-}

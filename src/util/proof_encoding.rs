@@ -1,12 +1,13 @@
-use crate::util::error::Error;
+use crate::{js::albedo, util::error::Error};
 use itertools::Itertools;
+use js_sys::JsString;
 use log::{debug, info, warn};
 
 use crate::stellar::stellar_data::TOMLCurrency;
 
 use super::error::ProofErr;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Proof {
     pub owned_badges: Vec<TOMLCurrency>,
     pub timestamp: Option<u64>,
@@ -146,4 +147,56 @@ impl Proof {
 
         Ok(final_proof)
     }
+}
+
+pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, String, String)> {
+    debug!("Trying to decrypt albedo signed message {}", base64_proof);
+
+    let bytes = base64::decode(base64_proof);
+
+    if bytes.is_err() {
+        return None;
+    }
+
+    let proof = String::from_utf8(bytes.unwrap());
+
+    debug!("Decoded {:?}", proof);
+
+    if proof.is_err() {
+        return None;
+    }
+
+    let split = proof
+        .unwrap()
+        .split(":")
+        .map(|s| s.to_owned())
+        .collect::<Vec<String>>();
+
+    if split.len() < 3 {
+        return None;
+    }
+    let message_sig = split[0].clone();
+    let pub_key = split[1].clone();
+    let mut plain_message = String::new();
+
+    split.iter().skip(2).for_each(|s| plain_message.push_str(s));
+
+    let valid = albedo::albedo_verify_message_signature(
+        JsString::from(pub_key.clone()),
+        JsString::from(plain_message.clone()),
+        JsString::from(message_sig.clone()),
+    )
+    .value_of();
+
+    debug!(
+        "Message `{}` signed by `{}`: `{}` is {}!",
+        plain_message,
+        pub_key,
+        message_sig,
+        match valid {
+            true => "valid",
+            _ => "invalid",
+        }
+    );
+    Some((valid, plain_message, pub_key))
 }

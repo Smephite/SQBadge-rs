@@ -5,10 +5,12 @@ use yew::prelude::*;
 #[derive(Clone, Debug, PartialEq, Properties)]
 pub struct Props {
     pub badge: Badge,
+    pub valid: bool
 }
 
 pub struct BadgeCard {
     pub badge: Badge,
+    pub valid: bool
 }
 
 impl Component for BadgeCard {
@@ -18,6 +20,7 @@ impl Component for BadgeCard {
     fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
         Self {
             badge: props.badge.to_owned(),
+            valid: props.valid
         }
     }
 
@@ -54,6 +57,7 @@ impl Component for BadgeCard {
                 <p class="badge-name">{&name}</p>
             </>
         };
+        let outer = 
         if self.badge.owned {
             html! {
                 <div class={classes!(cls)}>
@@ -66,6 +70,16 @@ impl Component for BadgeCard {
                     { inner }
                 </div>
             }
+        };
+        
+
+        if self.valid {
+            outer
+        } else {
+            html!{
+                <div class="has-background-danger"> { outer } </div>
+            }
         }
+
     }
 }

@@ -74,3 +74,7 @@ export async function albedo_establish_trustline(asset_code = "", asset_issuer =
         submit: submit
     })
 }
+
+export function albedo_verify_message_signature(public_key, plain_message, message_signature) {
+    return albedoSignatureVerification.verifyMessageSignature(public_key, plain_message, message_signature);
+}

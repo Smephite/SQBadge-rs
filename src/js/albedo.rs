@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 //use wasm_bindgen_futures::JsFuture;
-use js_sys::JsString;
+use js_sys::{Boolean, JsString};
 
 #[wasm_bindgen(module = "/src/js/albedo.js")]
 extern "C" {
@@ -13,4 +13,10 @@ extern "C" {
         message: JsString,
         pubKey: JsString,
     ) -> Result<JsValue, JsValue>;
+    #[wasm_bindgen(js_name = "albedo_verify_message_signature")]
+    pub fn albedo_verify_message_signature(
+        public_key: JsString,
+        plain_message: JsString,
+        message_signature: JsString,
+    ) -> Boolean;
 }
