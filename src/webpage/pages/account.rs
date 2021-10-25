@@ -1,3 +1,4 @@
+use chrono::Utc;
 use js_sys::JsString;
 use log::{debug, warn};
 use serde_json::Value;
@@ -30,6 +31,8 @@ pub struct AccountView {
     props: Props,
     status: WorkFunction,
     storage: AccountStorage,
+    signing_message: String,
+    modal_shown: bool,
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -41,6 +44,8 @@ pub enum WorkFunction {
     FetchOwnedBadgesDone { owned_badges: Vec<Badge> },
     Done,
     None,
+    ToggleModal,
+    ModalProofTextChange(String),
     CreateProof,
     ProofSignDone(Result<JsValue, JsValue>),
     Err(String),
@@ -56,6 +61,8 @@ impl Component for AccountView {
             props: props,
             status: WorkFunction::Begin,
             storage: AccountStorage::default(),
+            signing_message: String::new(),
+            modal_shown: false,
         }
     }
 
@@ -144,9 +151,25 @@ impl Component for AccountView {
                 debug!("{:?}", self.storage);
                 true
             }
+            WorkFunction::ToggleModal => {
+                self.modal_shown = !self.modal_shown;
+
+                self.signing_message = String::new();
+                self.status = WorkFunction::Done;
+                true
+            }
+            WorkFunction::ModalProofTextChange(msg) => {
+                self.signing_message = msg;
+                false
+            }
             WorkFunction::CreateProof => {
-                //TODO: date and identifier
                 let mut proof = Proof::default();
+                proof.timestamp = Some(Utc::now().timestamp());
+                proof.unique_id = match self.signing_message.len() == 0 {
+                    true => None,
+                    _ => Some(self.signing_message.clone()),
+                };
+
                 proof.owned_badges = self
                     .storage
                     .owned_badges
@@ -171,7 +194,9 @@ impl Component for AccountView {
                         WorkFunction::ProofSignDone(albedo_response)
                     });
                 }
-                false
+                self.modal_shown = false;
+                self.status = WorkFunction::Done;
+                true
             }
             WorkFunction::ProofSignDone(response) => {
                 if response.is_ok() {
@@ -287,9 +312,16 @@ impl AccountView {
                         .collect::<Html>()
                 }
                 </div>
-                <button onclick={self.link.callback(|_| WorkFunction::CreateProof)} class="button is-floating is-primary">
+                <button onclick={self.link.callback(|_| WorkFunction::ToggleModal)} class="button is-floating is-primary">
                     <i class="fas fa-key"></i>
                 </button>
+                {
+                    if self.modal_shown {
+                        self.render_modal()
+                    } else {
+                        Html::default()
+                    }
+                }
             </>
         }
     }
@@ -404,6 +436,35 @@ impl AccountView {
     fn view_err(&self, message: &String) -> Html {
         html! {
             <p>{"Error: "}{message}</p>
+        }
+    }
+    fn render_modal(&self) -> Html {
+        html! {
+            <div class="modal is-active">
+                <div class="modal-background" onclick={self.link.callback(|_| WorkFunction::ToggleModal)}></div>
+                <div class="modal-content">{self.render_modal_content()}</div>
+                <button class="modal-close is-large" aria-label="close" onclick={self.link.callback(|_| WorkFunction::ToggleModal)}></button>
+            </div>
+        }
+    }
+
+    fn render_modal_content(&self) -> Html {
+        let proof_text_change = self
+            .link
+            .callback(|e: InputData| WorkFunction::ModalProofTextChange(e.value));
+        html! {
+            <div class="card">
+                <div class="card-content">
+                    <div class="content">
+
+                        <h1 class="title is-centered" style="text-align: center">{"Specify proof message."}</h1>
+                        <textarea class="textarea" placeholder="Enter message..." name="proof" oninput={proof_text_change}/>
+                        <div class="mt-1" style="display: flex; justify-content: flex-end">
+                            <button class="button is-primary" onclick={self.link.callback(|_| WorkFunction::CreateProof)}>{"Sign"}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         }
     }
 }

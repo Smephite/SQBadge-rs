@@ -1,3 +1,4 @@
+use chrono::{TimeZone, Utc};
 use log::{debug, error, info, warn};
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
@@ -187,15 +188,17 @@ impl ProofVerify {
             .chain(badges.clone().into_iter().filter(|b| !b.is_mono()))
             .unique_by(|b| b.token.code.clone())
             .sorted_by(|a, b| a.token.code.cmp(&b.token.code))
-            .map(|b| -> Html{
-                
+            .map(|b| -> Html {
                 let valid = !(claimed_owned_badges.contains(&b.token.code) && !b.owned);
 
                 if !valid {
-                    error!("Proof claims to own {} but is not included in users account!", b.token.code);
+                    error!(
+                        "Proof claims to own {} but is not included in users account!",
+                        b.token.code
+                    );
                 }
 
-                html!{
+                html! {
                     <BadgeCard badge={b.clone()} valid={valid}/>
                 }
             })
@@ -247,6 +250,24 @@ impl ProofVerify {
             .unique_by(|b| b.code.clone())
             .count();
 
+        let proof_claim = self.proof.proof_claim.clone().unwrap();
+
+        let mut proof_message = String::from("This proof was signed");
+        let has_message = proof_claim.timestamp.is_some() || proof_claim.unique_id.is_some();
+
+        if proof_claim.timestamp.is_some() {
+            proof_message.push_str(&format!(
+                " on `{}`",
+                Utc.timestamp(proof_claim.timestamp.unwrap(), 0)
+            ));
+        }
+        if proof_claim.unique_id.is_some() {
+            proof_message.push_str(&format!(
+                " with message `{}`",
+                proof_claim.unique_id.unwrap()
+            ));
+        }
+
         html! {
             <>
                 <h2 class="title mid-center" style="text-align: center">
@@ -273,6 +294,12 @@ impl ProofVerify {
                 </p>
                 <p style="text-align: center; color:red" class="mid-center" hidden={claimed_num == completed_num}>
                     {format!("Invalid Proof! Claimed to have completed {} quests!", claimed_num)}
+                </p>
+
+                <p style="text-align: center; color:green" class="mid-center" hidden={(claimed_num != completed_num || !self.proof.valid) && has_message}>
+                    {
+                        proof_message
+                    }
                 </p>
 
 

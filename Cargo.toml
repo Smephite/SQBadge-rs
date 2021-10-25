@@ -31,3 +31,9 @@ features = [
   'Response',
   'Window',
 ]
+
+[dependencies.chrono]
+version = "0.4"
+features = [
+  'wasmbind'
+]

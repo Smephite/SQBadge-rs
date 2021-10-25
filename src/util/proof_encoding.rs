@@ -10,7 +10,7 @@ use super::error::ProofErr;
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct Proof {
     pub owned_badges: Vec<TOMLCurrency>,
-    pub timestamp: Option<u64>,
+    pub timestamp: Option<i64>,
     pub unique_id: Option<String>,
 }
 
