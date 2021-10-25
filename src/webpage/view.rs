@@ -62,19 +62,16 @@ impl Component for Model {
 impl Model {
     fn view_nav(&self) -> Html {
         html! {
-            <nav class="navbar is-transparent is-fixed-bottom" role="navigation">
-                <div class="navbar-brand">
+                <div style="position: fixed; bottom: 0.5rem; left: 0.75rem;">
                     {go_to(Route::Home, html!{
                         <>
-                        <span class="is-size-3" style="padding-right: 0px">{"SQBadge"}</span><span style="padding-left: 0px" class="is-size-5">{"-rs"}</span>
+                        <span class="is-size-3" style="padding-right: 0px">{"SQBadge"}</span><span style="padding-left: 0px; position: absolute; bottom: 0.5rem" class="is-size-5" >{"-rs"}</span>
                         </>
-                    }, vec!["navbar-item", "no-hover"])}
+                    }, vec!["is-shadowless", "has-text-dark"])}
                 </div>
-            </nav>
         }
     }
 }
-
 fn switch(routes: &Route) -> Html {
     match routes {
         Route::Home => html! {<Home />},
