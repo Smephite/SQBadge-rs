@@ -80,8 +80,10 @@ pub async fn fetch_badges(
                         claimable_balance.is_some()
                     );
                     if claimable_balance.is_some() {
+                        let claimable_balance = claimable_balance.unwrap();
                         b.owned = true;
-                        b.tx_hash = Some(claimable_balance.unwrap().transaction_hash);
+                        b.tx_hash = Some(claimable_balance.transaction_hash);
+                        b.date_accuired = Some(claimable_balance.created_at)
                     }
                 }
             }

@@ -42,6 +42,7 @@ pub struct OperationClaimableBalance {
     pub transaction_hash: String,
     pub claimants: Vec<Value>,
     pub asset: String,
+    pub created_at: String,
 }
 
 #[derive(Deserialize, Default, Debug, Clone, PartialEq)]
