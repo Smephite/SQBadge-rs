@@ -1,4 +1,4 @@
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use yew::prelude::*;
 use yew::{html, Component, ComponentLink};
 
@@ -188,8 +188,15 @@ impl ProofVerify {
             .unique_by(|b| b.token.code.clone())
             .sorted_by(|a, b| a.token.code.cmp(&b.token.code))
             .map(|b| -> Html{
+                
+                let valid = !(claimed_owned_badges.contains(&b.token.code) && !b.owned);
+
+                if !valid {
+                    error!("Proof claims to own {} but is not included in users account!", b.token.code);
+                }
+
                 html!{
-                    <BadgeCard badge={b.clone()} valid={!(claimed_owned_badges.contains(&b.token.code) ^ b.owned)}/>
+                    <BadgeCard badge={b.clone()} valid={valid}/>
                 }
             })
             .collect::<Html>();
@@ -261,10 +268,13 @@ impl ProofVerify {
                         }
                     }
                 </p>
-
-                <p style="text-align: center; color:red" class="mid-center" hidden={claimed_num == owned_num}>
+                <p style="text-align: center; color:red" class="mid-center" hidden={self.proof.valid}>
+                    {format!("Invalid Proof! The given signature is invalid!")}
+                </p>
+                <p style="text-align: center; color:red" class="mid-center" hidden={claimed_num == completed_num}>
                     {format!("Invalid Proof! Claimed to have completed {} quests!", claimed_num)}
                 </p>
+
 
                 <div class="badges">
                 {
