@@ -13,10 +13,10 @@ extern "C" {
         message: JsString,
         pubKey: JsString,
     ) -> Result<JsValue, JsValue>;
-    #[wasm_bindgen(js_name = "albedo_verify_message_signature")]
+    #[wasm_bindgen(js_name = "albedo_verify_message_signature", catch)]
     pub fn albedo_verify_message_signature(
         public_key: JsString,
         plain_message: JsString,
         message_signature: JsString,
-    ) -> Boolean;
+    ) -> Result<Boolean, JsValue>;
 }

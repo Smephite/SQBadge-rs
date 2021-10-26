@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 #[allow(dead_code)]
 pub enum Error {
     StellarErr(StellarErr),
@@ -7,13 +7,13 @@ pub enum Error {
     Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ProofErr {
     ProofInvalidEncoding,
     ProofWrongVersion,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum StellarErr {
     InvalidPublicKey,
     AccountNotFound,

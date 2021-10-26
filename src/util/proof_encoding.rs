@@ -1,4 +1,7 @@
-use crate::{js::albedo, util::error::Error};
+use crate::{
+    js::albedo,
+    util::error::{Error, StellarErr},
+};
 use itertools::Itertools;
 use js_sys::JsString;
 use log::{debug, info, warn};
@@ -149,13 +152,15 @@ impl Proof {
     }
 }
 
-pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, String, String)> {
+pub fn verify_albedo_signed_message(
+    base64_proof: &String,
+) -> Result<(bool, String, String), Error> {
     debug!("Trying to decrypt albedo signed message {}", base64_proof);
 
     let bytes = base64::decode(base64_proof);
 
     if bytes.is_err() {
-        return None;
+        return Err(Error::ProofErr(ProofErr::ProofInvalidEncoding));
     }
 
     let proof = String::from_utf8(bytes.unwrap());
@@ -163,7 +168,7 @@ pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, Stri
     debug!("Decoded {:?}", proof);
 
     if proof.is_err() {
-        return None;
+        return Err(Error::ProofErr(ProofErr::ProofInvalidEncoding));
     }
 
     let split = proof
@@ -173,7 +178,7 @@ pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, Stri
         .collect::<Vec<String>>();
 
     if split.len() < 3 {
-        return None;
+        return Err(Error::ProofErr(ProofErr::ProofInvalidEncoding));
     }
     let message_sig = split[0].clone();
     let pub_key = split[1].clone();
@@ -185,8 +190,23 @@ pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, Stri
         JsString::from(pub_key.clone()),
         JsString::from(plain_message.clone()),
         JsString::from(message_sig.clone()),
-    )
-    .value_of();
+    );
+
+    if valid.is_err() {
+        let err = valid.err().unwrap();
+
+        debug!("albedo error while verifying: {:?}", err);
+
+        let msg = format!("{:?}", err);
+
+        if msg.starts_with("JsValue(Error: Invalid public key format.") {
+            return Err(Error::StellarErr(StellarErr::InvalidPublicKey));
+        }
+
+        return Err(Error::Unknown);
+    }
+
+    let valid = valid.unwrap().value_of();
 
     debug!(
         "Message `{}` signed by `{}`: `{}` is {}!",
@@ -198,5 +218,5 @@ pub fn verify_albedo_signed_message(base64_proof: &String) -> Option<(bool, Stri
             _ => "invalid",
         }
     );
-    Some((valid, plain_message, pub_key))
+    Ok((valid, plain_message, pub_key))
 }

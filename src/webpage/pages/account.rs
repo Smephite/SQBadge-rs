@@ -12,7 +12,9 @@ use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use crate::util::error::{Error, StellarErr};
 use crate::util::proof_encoding::Proof;
+use crate::webpage::components::error::ErrorCard;
 use itertools::Itertools;
 
 #[derive(Clone, Debug, Eq, PartialEq, Properties)]
@@ -131,7 +133,24 @@ impl Component for AccountView {
 
                     if in_possession.is_err() {
                         // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
-                        return WorkFunction::Err(format!("Error: {:?}", in_possession.err()));
+                        let err =  in_possession.err().unwrap();
+
+                        if let Error::StellarErr(s_err) = err  {
+                            return WorkFunction::Err(match s_err {
+                                StellarErr::AccountNotFound => {
+                                    format!("The account you specified could not be found!")
+                                },
+                                StellarErr::InvalidPublicKey => {
+                                    format!("The specified public key is not in a valid ed25519 format!")
+                                },
+                                _ => {
+                                    format!("Unknown error while trying to connect to the stellar network!")
+                                }
+
+                            });
+                        }
+
+                        return WorkFunction::Err(format!("{:?}", err));
                     }
 
                     WorkFunction::FetchOwnedBadgesDone {
@@ -435,7 +454,7 @@ impl AccountView {
     }
     fn view_err(&self, message: &String) -> Html {
         html! {
-            <p>{"Error: "}{message}</p>
+            <ErrorCard message={message.clone()} />
         }
     }
     fn render_modal(&self) -> Html {

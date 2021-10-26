@@ -1,14 +1,12 @@
-use crate::webpage::pages::{account::AccountView, home::Home, not_found, proof::ProofVerify};
+use crate::webpage::pages::{account::AccountView, home::Home, proof::ProofVerify};
 use yew::prelude::*;
 use yew_router::prelude::*;
 
 #[derive(::yew_router::Routable, PartialEq, Clone, Debug)]
 pub enum Route {
     #[at("/")]
-    Home,
-    #[at("/404")]
     #[not_found]
-    NotFound,
+    Home,
     #[at("/account/:id")]
     Account { id: String },
     #[at("/proof/:id")]
@@ -75,7 +73,6 @@ impl Model {
 fn switch(routes: &Route) -> Html {
     match routes {
         Route::Home => html! {<Home />},
-        Route::NotFound => not_found::render(),
         Route::Account { id } => html! {<AccountView account={id.clone()}/>},
         Route::Proof { id } => html! {<ProofVerify proof={id.clone()}/>},
     }

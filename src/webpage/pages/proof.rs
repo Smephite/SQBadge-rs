@@ -7,8 +7,10 @@ use crate::js::albedo;
 use crate::stellar::stellar_data::TOMLCurrency;
 use crate::stellar::*;
 use crate::util::badge_check::{self, Badge};
+use crate::util::error::{Error, ProofErr, StellarErr};
 use crate::util::proof_encoding::{self, Proof};
 use crate::webpage::components::badge::BadgeCard;
+use crate::webpage::components::error::ErrorCard;
 use crate::webpage::html_implements;
 use itertools::Itertools;
 
@@ -74,8 +76,23 @@ impl Component for ProofVerify {
         debug!("LoadStatus: {:?}", status);
         match status {
             LoadStatus::Begin => {
-                self.decrypt_proof();
-                self.link.send_message(LoadStatus::FetchAvailableBadges);
+                if let Some(err) = self.decrypt_proof() {
+                    // proof decryption failed:
+                    let message = match err.clone() {
+                        Error::StellarErr(StellarErr::InvalidPublicKey) => {
+                            format!("The proof contains a public key of an invalid format!")
+                        }
+                        Error::ProofErr(_) => {
+                            format!("The given proof could not be decoded!")
+                        }
+                        _ => {
+                            format!("An unknown error occured. {:?}", err)
+                        }
+                    };
+                    self.link.send_message(LoadStatus::Err(message))
+                } else {
+                    self.link.send_message(LoadStatus::FetchAvailableBadges);
+                }
                 true
             }
             LoadStatus::FetchAvailableBadges => {
@@ -97,7 +114,7 @@ impl Component for ProofVerify {
             }
             LoadStatus::FetchAvailableBadgesDone { available_badges } => {
                 self.proof.available_badges = Some(available_badges.clone());
-                info!("Loaded available badges: {:?}", available_badges);
+                debug!("Loaded available badges: {:?}", available_badges);
                 self.link.send_message(LoadStatus::CheckProof);
                 false
             }
@@ -132,7 +149,24 @@ impl Component for ProofVerify {
 
                     if in_possession.is_err() {
                         // Sth went wrong fetching --> probably wrong account id (if not handled inbefore ._.)
-                        return LoadStatus::Err(format!("Error: {:?}", in_possession.err()));
+                        let err =  in_possession.err().unwrap();
+
+                        if let Error::StellarErr(s_err) = err  {
+                            return LoadStatus::Err(match s_err {
+                                StellarErr::AccountNotFound => {
+                                    format!("The account ({}) specified in the proof could not be found!", pub_key)
+                                },
+                                StellarErr::InvalidPublicKey => {
+                                    format!("The public key embedded in the proof is not in a valid ed25519 format!")
+                                },
+                                _ => {
+                                    format!("Unknown error while trying to connect to the stellar network!")
+                                }
+
+                            });
+                        }
+
+                        return LoadStatus::Err(format!("{:?}", err));
                     }
 
                     LoadStatus::FetchOwnedBadgesDone {
@@ -143,13 +177,13 @@ impl Component for ProofVerify {
             }
             LoadStatus::FetchOwnedBadgesDone { owned_badges } => {
                 self.proof.owned_badges = Some(owned_badges.clone());
-                info!("Loaded owned badges: {:?}", owned_badges);
+                debug!("Loaded owned badges: {:?}", owned_badges);
                 self.link.send_message(LoadStatus::Done);
                 false
             }
             LoadStatus::Done => {
-                info!("Finished Loading!");
-                info!("{:?}", self.proof);
+                debug!("Finished Loading!");
+                debug!("{:?}", self.proof);
                 true
             }
             _ => true,
@@ -335,7 +369,7 @@ impl ProofVerify {
             }
             _ => String::from("unknown"),
         };
-        info! {"{:?}", status};
+        debug! {"{:?}", status};
         html! {
             <div class="container is-max-desktop">
                 <div class="sqb-centered">
@@ -347,15 +381,15 @@ impl ProofVerify {
     }
     fn view_err(&self, message: &String) -> Html {
         html! {
-            <p>{"Error: "}{message}</p>
+            <ErrorCard message={message.clone()}/>
         }
     }
 
-    fn decrypt_proof(&mut self) -> bool {
+    fn decrypt_proof(&mut self) -> Option<Error> {
         let proof = proof_encoding::verify_albedo_signed_message(&self.props.proof);
 
-        if proof.is_none() {
-            return false;
+        if proof.is_err() {
+            return Some(proof.err().unwrap());
         }
 
         let proof = proof.unwrap();
@@ -365,7 +399,7 @@ impl ProofVerify {
         self.proof.valid = proof.0;
         self.proof.account = Some(proof.2);
 
-        return true;
+        None
     }
 
     fn decrypt_badges(&mut self) -> bool {

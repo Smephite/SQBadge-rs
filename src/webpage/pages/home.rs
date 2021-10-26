@@ -2,7 +2,6 @@ use crate::js::{albedo, albedo_response};
 use crate::webpage::view::Route;
 use js_sys::JsString;
 use log::debug;
-use web_sys::console::debug;
 use yew::prelude::*;
 
 pub struct Home {
@@ -83,6 +82,7 @@ impl Component for Home {
             }
             ClientEvent::ModalProofTextChange(proof) => {
                 self.proof_text = proof;
+                return true;
             }
             _ => {}
         }
@@ -152,7 +152,11 @@ impl Home {
                         <h1 class="title is-centered" style="text-align: center">{"Upload proof."}</h1>
                         <textarea class="textarea" placeholder="Enter signed Proof..." name="proof" oninput={proof_text_change}/>
                         <div class="mt-1" style="display: flex; justify-content: flex-end">
-                            <button class="button is-primary" onclick={self.link.callback(|_| ClientEvent::ProofUpload)}>{"Check"}</button>
+                            <button
+                             class="button is-primary"
+                             onclick={self.link.callback(|_| ClientEvent::ProofUpload)}
+                             disabled={self.proof_text == ""}
+                             >{"Check"}</button>
                         </div>
                     </div>
                 </div>
