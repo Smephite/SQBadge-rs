@@ -295,7 +295,7 @@ impl AccountView {
                     </a>
                 </h2>
                 <p style="text-align: center" class="mid-center">
-                    {format!(" Completed {}/{} Quests", completed_num, badges_num)}
+                    {format!(" Earned {}/{} Badges", completed_num, badges_num)}
                     {
                         if owned_num > badges_num {
                             format!(

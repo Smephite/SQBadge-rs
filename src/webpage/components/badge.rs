@@ -60,7 +60,7 @@ impl Component for BadgeCard {
         let outer = if self.badge.owned {
             html! {
                 <div class={classes!(cls)}>
-                    <a href={format!("https://horizon.stellar.org/transactions/{}", self.badge.tx_hash.clone().unwrap())}>{ inner }</a>
+                    <a href={format!("https://stellar.expert/explorer/public/tx/{}", self.badge.tx_hash.clone().unwrap())} target={"_blank"}>{ inner }</a>
                 </div>
             }
         } else {
